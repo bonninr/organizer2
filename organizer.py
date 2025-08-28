@@ -5,9 +5,11 @@ import csv
 import platform
 from enum import Enum
 from functools import cache
+import base64
 
 import cadquery as cq
 import streamlit as st
+import streamlit.components.v1 as components
 import pyvista as pv
 import numpy as np
 from stpyvista import stpyvista as stv
@@ -585,216 +587,424 @@ def find_wood_texture():
     
     return None
 
-def add_lacquered_wood_material_to_gltf(gltf_path):
-    """Add lacquered wood PBR material with local texture to GLTF file"""
-    try:
-        with open(gltf_path, 'r') as f:
-            gltf_data = json.load(f)
-        
-        # Find local wood texture
-        wood_texture_file = find_wood_texture()
-        
-        if not wood_texture_file:
-            st.warning("No wood texture file found, using procedural material")
-            return add_procedural_wood_material(gltf_data, gltf_path)
-        
-        st.info(f"Using wood texture: {wood_texture_file}")
-        diffuse_data_uri = encode_local_image(wood_texture_file)
-        
-        # Fallback to procedural material if encoding fails
-        if not diffuse_data_uri:
-            st.warning("Failed to load local texture, using procedural material")
-            return add_procedural_wood_material(gltf_data, gltf_path)
-        
-        # Add textures array for wood texture images
-        if "textures" not in gltf_data:
-            gltf_data["textures"] = []
-        if "images" not in gltf_data:
-            gltf_data["images"] = []
-        if "samplers" not in gltf_data:
-            gltf_data["samplers"] = []
-        
-        # Add wood texture image
-        wood_diffuse_image = {
-            "uri": diffuse_data_uri,
-            "name": "WoodDiffuse"
-        }
-        
-        gltf_data["images"].append(wood_diffuse_image)
-        
-        # Add texture sampler for repeating wood pattern
-        wood_sampler = {
-            "magFilter": 9729,  # LINEAR
-            "minFilter": 9987,  # LINEAR_MIPMAP_LINEAR
-            "wrapS": 10497,     # REPEAT
-            "wrapT": 10497      # REPEAT
-        }
-        gltf_data["samplers"].append(wood_sampler)
-        sampler_index = len(gltf_data["samplers"]) - 1
-        
-        # Add texture
-        diffuse_texture = {
-            "sampler": sampler_index,
-            "source": len(gltf_data["images"]) - 1  # Wood diffuse image
-        }
-        
-        gltf_data["textures"].append(diffuse_texture)
-        diffuse_texture_index = len(gltf_data["textures"]) - 1
-        
-        # Define high-gloss lacquered wood PBR material (PyVista compatible)
-        wood_material = {
-            "name": "HighGlossLacqueredWood",
-            "pbrMetallicRoughness": {
-                "baseColorTexture": {
-                    "index": diffuse_texture_index,
-                    "texCoord": 0
-                },
-                "baseColorFactor": [0.9, 0.7, 0.5, 1.0],  # Brighter wood tint for better visibility
-                "metallicFactor": 0.1,   # Slightly higher metallic for more reflection
-                "roughnessFactor": 0.02  # Very low roughness for mirror-like lacquer finish
-            },
-            "emissiveFactor": [0.12, 0.08, 0.04]  # Stronger warm glow for lacquer effect
-        }
-        
-        # Add materials array if it doesn't exist
-        if "materials" not in gltf_data:
-            gltf_data["materials"] = []
-        
-        gltf_data["materials"].append(wood_material)
-        material_index = len(gltf_data["materials"]) - 1
-        
-        # Apply material to all meshes
-        if "meshes" in gltf_data:
-            for mesh in gltf_data["meshes"]:
-                if "primitives" in mesh:
-                    for primitive in mesh["primitives"]:
-                        primitive["material"] = material_index
-        
-        # Enhanced cathedral lighting
-        if "extensions" not in gltf_data:
-            gltf_data["extensions"] = {}
-        
-        gltf_data["extensions"]["KHR_lights_punctual"] = {
-            "lights": [
-                {
-                    "name": "MainCathedralLight",
-                    "type": "directional",
-                    "color": [1.0, 0.95, 0.8],  # Warm golden light
-                    "intensity": 4.0
-                },
-                {
-                    "name": "StainedGlassLight1", 
-                    "type": "spot",
-                    "color": [0.9, 0.7, 1.0],  # Purple stained glass
-                    "intensity": 3.0,
-                    "range": 800,
-                    "spot": {
-                        "innerConeAngle": 0.5,
-                        "outerConeAngle": 1.0
-                    }
-                },
-                {
-                    "name": "StainedGlassLight2",
-                    "type": "spot", 
-                    "color": [1.0, 0.8, 0.6],  # Amber stained glass
-                    "intensity": 2.5,
-                    "range": 600,
-                    "spot": {
-                        "innerConeAngle": 0.3,
-                        "outerConeAngle": 0.8
-                    }
-                }
-            ]
-        }
-        
-        # Add required extensions to the root
-        if "extensionsUsed" not in gltf_data:
-            gltf_data["extensionsUsed"] = []
-        
-        # Only use extensions that PyVista supports
-        extensions_needed = ["KHR_lights_punctual"]
-        for ext in extensions_needed:
-            if ext not in gltf_data["extensionsUsed"]:
-                gltf_data["extensionsUsed"].append(ext)
-        
-        # Save modified GLTF
-        with open(gltf_path, 'w') as f:
-            json.dump(gltf_data, f, indent=2)
-            
-        return True
-        
-    except Exception as e:
-        st.warning(f"Failed to add materials to GLTF: {str(e)}")
-        return False
 
-def add_procedural_wood_material(gltf_data, gltf_path):
-    """Add procedural wood material without external textures"""
+def get_wood_texture_base64(wood_texture_path):
+    """Get wood texture as base64 data URI"""
+    if not wood_texture_path or not os.path.exists(wood_texture_path):
+        return None
+    
     try:
-        # Define high-gloss lacquered wood PBR material (no textures, PyVista compatible)
-        wood_material = {
-            "name": "ProceduralLacqueredWood",
-            "pbrMetallicRoughness": {
-                "baseColorFactor": [0.65, 0.45, 0.3, 1.0],  # Brighter rich wood brown
-                "metallicFactor": 0.15,  # Higher metallic for more reflection
-                "roughnessFactor": 0.03  # Very low roughness for high-gloss lacquer
-            },
-            "emissiveFactor": [0.15, 0.1, 0.05]  # Stronger warm glow from lacquer
-        }
+        with open(wood_texture_path, 'rb') as f:
+            texture_data = f.read()
         
-        # Add materials array if it doesn't exist
-        if "materials" not in gltf_data:
-            gltf_data["materials"] = []
+        # Encode as base64
+        texture_base64 = base64.b64encode(texture_data).decode('utf-8')
         
-        gltf_data["materials"].append(wood_material)
-        material_index = len(gltf_data["materials"]) - 1
+        # Determine MIME type
+        if wood_texture_path.lower().endswith('.jpg') or wood_texture_path.lower().endswith('.jpeg'):
+            mime_type = "image/jpeg"
+        elif wood_texture_path.lower().endswith('.png'):
+            mime_type = "image/png"
+        else:
+            mime_type = "image/jpeg"
         
-        # Apply material to all meshes
-        if "meshes" in gltf_data:
-            for mesh in gltf_data["meshes"]:
-                if "primitives" in mesh:
-                    for primitive in mesh["primitives"]:
-                        primitive["material"] = material_index
-        
-        # Add cathedral lighting
-        if "extensions" not in gltf_data:
-            gltf_data["extensions"] = {}
-        
-        gltf_data["extensions"]["KHR_lights_punctual"] = {
-            "lights": [
-                {
-                    "name": "MainCathedralLight",
-                    "type": "directional",
-                    "color": [1.0, 0.95, 0.8],
-                    "intensity": 4.0
-                },
-                {
-                    "name": "AmbientLight", 
-                    "type": "point",
-                    "color": [0.9, 0.8, 1.0],
-                    "intensity": 2.0,
-                    "range": 1000
-                }
-            ]
-        }
-        
-        # Add required extensions (only PyVista supported ones)
-        if "extensionsUsed" not in gltf_data:
-            gltf_data["extensionsUsed"] = []
-        
-        extensions_needed = ["KHR_lights_punctual"]
-        for ext in extensions_needed:
-            if ext not in gltf_data["extensionsUsed"]:
-                gltf_data["extensionsUsed"].append(ext)
-        
-        # Save modified GLTF
-        with open(gltf_path, 'w') as f:
-            json.dump(gltf_data, f, indent=2)
-            
-        return True
-        
+        return f"data:{mime_type};base64,{texture_base64}"
     except Exception as e:
-        st.warning(f"Failed to add procedural material: {str(e)}")
-        return False
+        print(f"Error loading texture: {e}")
+        return None
+
+
+def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=500):
+    """Create a Three.js GLTF viewer with lacquered wood material"""
+    
+    # Read GLTF file content and handle binary data
+    with open(gltf_file_path, 'r') as f:
+        gltf_json = json.load(f)
+    
+    # Check if there's a separate .bin file and embed it
+    gltf_dir = os.path.dirname(gltf_file_path)
+    bin_data_uri = None
+    
+    if 'buffers' in gltf_json:
+        for buffer in gltf_json['buffers']:
+            if 'uri' in buffer and buffer['uri'].endswith('.bin'):
+                bin_file_path = os.path.join(gltf_dir, buffer['uri'])
+                if os.path.exists(bin_file_path):
+                    with open(bin_file_path, 'rb') as bin_file:
+                        bin_data = bin_file.read()
+                    bin_base64 = base64.b64encode(bin_data).decode('utf-8')
+                    bin_data_uri = f"data:application/octet-stream;base64,{bin_base64}"
+                    # Update the buffer to use the data URI
+                    buffer['uri'] = bin_data_uri
+    
+    # Convert the modified GLTF JSON to base64
+    gltf_json_str = json.dumps(gltf_json)
+    gltf_base64 = base64.b64encode(gltf_json_str.encode('utf-8')).decode('utf-8')
+    
+    # Handle wood texture - get as base64
+    wood_texture_uri = get_wood_texture_base64(wood_texture_path)
+    
+    # Create the HTML template with Three.js
+    html_template = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Lacquered Wood GLTF Viewer</title>
+        <style>
+            body {{
+                margin: 0;
+                padding: 0;
+                background: #0e1117;
+                font-family: Arial, sans-serif;
+                overflow: hidden;
+            }}
+            #container {{
+                width: 100%;
+                height: {height}px;
+                position: relative;
+            }}
+            #loading {{
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                color: #ffffff;
+                font-size: 1.1em;
+                z-index: 100;
+                text-align: center;
+            }}
+            .controls {{
+                position: absolute;
+                bottom: 10px;
+                left: 10px;
+                background: rgba(0,0,0,0.7);
+                padding: 10px;
+                border-radius: 8px;
+                font-size: 0.8em;
+                color: #ffffff;
+                z-index: 200;
+            }}
+            .error {{
+                color: #ff6b6b;
+                background: rgba(255, 0, 0, 0.1);
+                padding: 15px;
+                border-radius: 8px;
+                margin: 20px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div id="container">
+            <div id="loading">
+                <div>Loading Lacquered Wood Model...</div>
+                <div style="font-size: 0.9em; margin-top: 10px;">Applying materials...</div>
+            </div>
+            <div class="controls">
+                <strong>Controls:</strong><br>
+                Mouse: Rotate • Wheel: Zoom<br>
+                A: Auto-rotate • R: Reset view
+            </div>
+        </div>
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+        <script>
+            const loading = document.getElementById('loading');
+            const container = document.getElementById('container');
+
+            // Scene setup
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({{ antialias: true, alpha: true }});
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            container.appendChild(renderer.domElement);
+
+            // Camera controls
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.enableZoom = true;
+            controls.autoRotate = true;
+            controls.autoRotateSpeed = 1.0;
+
+            // Lighting setup for lacquered wood
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambientLight);
+
+            // Main directional light (cathedral style)
+            const mainLight = new THREE.DirectionalLight(0xfff8e1, 2.5);
+            mainLight.position.set(10, 15, 5);
+            mainLight.castShadow = true;
+            mainLight.shadow.mapSize.width = 2048;
+            mainLight.shadow.mapSize.height = 2048;
+            scene.add(mainLight);
+
+            // Secondary warm light
+            const warmLight = new THREE.SpotLight(0xffcc80, 1.5);
+            warmLight.position.set(-8, 12, 8);
+            warmLight.angle = Math.PI / 4;
+            warmLight.penumbra = 0.3;
+            scene.add(warmLight);
+
+            // Accent light for highlights
+            const accentLight = new THREE.PointLight(0xffffff, 0.8);
+            accentLight.position.set(5, 8, -5);
+            scene.add(accentLight);
+
+            // Reflective floor
+            const floorGeometry = new THREE.PlaneGeometry(50, 50);
+            const floorMaterial = new THREE.MeshPhysicalMaterial({{
+                color: 0x1a1a1a,
+                metalness: 0.1,
+                roughness: 0.05,
+                clearcoat: 0.8,
+                reflectivity: 0.9,
+                transparent: true,
+                opacity: 0.8
+            }});
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.y = 0;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            // Load GLTF model
+            const loader = new THREE.GLTFLoader();
+            const textureLoader = new THREE.TextureLoader();
+
+            // Promise-based texture loading function
+            function loadAndApplyWoodTexture(model) {{
+                return new Promise((resolve, reject) => {{
+                    const materialProps = {{
+                        color: 0xd2b48c, // Default tan wood color
+                        metalness: 0.0,
+                        roughness: 0.4,
+                        clearcoat: 0.6,
+                        clearcoatRoughness: 0.1,
+                        reflectivity: 0.8,
+                        envMapIntensity: 1.0
+                    }};
+
+                    {"" if not wood_texture_uri else f'''
+                    // Load wood texture if available
+                    console.log('🔄 Loading wood texture...');
+                    
+                    const textureLoader = new THREE.TextureLoader();
+                    textureLoader.load(
+                        "{wood_texture_uri}",
+                        function(texture) {{
+                            console.log('✅ Wood texture loaded successfully');
+                            
+                            // Configure texture
+                            texture.wrapS = THREE.RepeatWrapping;
+                            texture.wrapT = THREE.RepeatWrapping;
+                            texture.repeat.set(2, 2);
+                            texture.encoding = THREE.sRGBEncoding;
+                            texture.needsUpdate = true;
+                            
+                            // Create material with texture
+                            const woodMaterial = new THREE.MeshPhysicalMaterial({{
+                                map: texture,
+                                color: 0xffffff, // White to show texture
+                                metalness: 0.0,
+                                roughness: 0.4,
+                                clearcoat: 0.6,
+                                clearcoatRoughness: 0.1,
+                                reflectivity: 0.8,
+                                envMapIntensity: 1.0
+                            }});
+                            
+                            // Apply to all meshes
+                            model.traverse((child) => {{
+                                if (child.isMesh) {{
+                                    child.material = woodMaterial.clone();
+                                    child.material.needsUpdate = true;
+                                }}
+                            }});
+                            
+                            console.log('✅ Wood material applied to all meshes');
+                            resolve(model);
+                        }},
+                        undefined,
+                        function(error) {{
+                            console.error('❌ Failed to load texture:', error);
+                            // Apply fallback material without texture
+                            const fallbackMaterial = new THREE.MeshPhysicalMaterial(materialProps);
+                            model.traverse((child) => {{
+                                if (child.isMesh) {{
+                                    child.material = fallbackMaterial.clone();
+                                }}
+                            }});
+                            resolve(model); // Still resolve, just with fallback material
+                        }}
+                    );
+                    '''}
+                    
+                    {"" if wood_texture_uri else f'''
+                    // No texture available, use fallback material
+                    console.log('ℹ️ No texture available, using fallback material');
+                    const fallbackMaterial = new THREE.MeshPhysicalMaterial(materialProps);
+                    model.traverse((child) => {{
+                        if (child.isMesh) {{
+                            child.material = fallbackMaterial.clone();
+                        }}
+                    }});
+                    resolve(model);
+                    '''}
+                }});
+            }}
+
+            // Load and process GLTF
+            try {{
+                // Convert base64 to blob URL for GLTF loader
+                const binaryString = atob("{gltf_base64}");
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {{
+                    bytes[i] = binaryString.charCodeAt(i);
+                }}
+                const blob = new Blob([bytes], {{ type: 'model/gltf+json' }});
+                const gltfUrl = URL.createObjectURL(blob);
+
+                loader.load(
+                    gltfUrl,
+                    async function(gltf) {{
+                        console.log('✅ GLTF loaded successfully');
+                        
+                        const model = gltf.scene;
+                        
+                        // Center and scale the model
+                        const box = new THREE.Box3().setFromObject(model);
+                        const center = box.getCenter(new THREE.Vector3());
+                        const size = box.getSize(new THREE.Vector3());
+                        
+                        const maxDim = Math.max(size.x, size.y, size.z);
+                        const scale = 4 / maxDim;
+                        model.scale.setScalar(scale);
+                        model.position.sub(center.multiplyScalar(scale));
+                        model.position.y = 0;
+                        
+                        // Set shadow properties for all meshes
+                        model.traverse((child) => {{
+                            if (child.isMesh) {{
+                                child.castShadow = true;
+                                child.receiveShadow = true;
+                            }}
+                        }});
+                        
+                        // Load texture first, then apply materials and add to scene
+                        await loadAndApplyWoodTexture(model);
+                        
+                        // Add model to scene only after texture is loaded
+                        scene.add(model);
+                        
+                        // Position camera for optimal view
+                        camera.position.set(3.32, 4.05, -2.71);
+                        camera.lookAt(-0.06, 1.59, 0.44);
+                        controls.target.set(-0.06, 1.59, 0.44);
+                        controls.update();
+                        
+                        // Hide loading indicator
+                        loading.style.display = 'none';
+                        
+                        // Clean up blob URL
+                        URL.revokeObjectURL(gltfUrl);
+                        
+                        // Setup controls and animation
+                        setupInteraction(model);
+                    }},
+                    function(xhr) {{
+                        const percent = (xhr.loaded / xhr.total * 100).toFixed(0);
+                        loading.innerHTML = `
+                            <div>Loading Lacquered Wood Model...</div>
+                            <div style="font-size: 0.9em; margin-top: 10px;">Progress: ${{percent}}%</div>
+                        `;
+                    }},
+                    function(error) {{
+                        console.error('❌ GLTF loading failed:', error);
+                        loading.innerHTML = `
+                            <div class="error">
+                                <strong>Error loading model:</strong><br>
+                                ${{error.message || 'Unknown error'}}
+                            </div>
+                        `;
+                    }}
+                );
+            }} catch (error) {{
+                console.error('❌ Failed to process GLTF data:', error);
+                loading.innerHTML = `
+                    <div class="error">
+                        <strong>Error processing model data:</strong><br>
+                        ${{error.message}}
+                    </div>
+                `;
+            }}
+
+            function setupInteraction(model) {{
+                let hasUserInteracted = false;
+                
+                // Stop auto-rotation on first user interaction
+                function stopAutoRotateOnInteraction() {{
+                    if (!hasUserInteracted) {{
+                        hasUserInteracted = true;
+                        controls.autoRotate = false;
+                        console.log('Auto-rotation stopped due to user interaction');
+                    }}
+                }}
+                
+                // Add event listeners for user interactions (only to stop auto-rotation once)
+                controls.addEventListener('start', stopAutoRotateOnInteraction);
+                renderer.domElement.addEventListener('wheel', stopAutoRotateOnInteraction, {{ passive: false }});
+                renderer.domElement.addEventListener('mousedown', stopAutoRotateOnInteraction);
+                renderer.domElement.addEventListener('touchstart', stopAutoRotateOnInteraction);
+                
+                // Keyboard controls
+                document.addEventListener('keydown', (event) => {{
+                    switch(event.code) {{
+                        case 'KeyA':
+                            event.preventDefault();
+                            controls.autoRotate = !controls.autoRotate;
+                            hasUserInteracted = true; // Mark as interacted when manually toggling
+                            console.log('Auto-rotation toggled:', controls.autoRotate);
+                            break;
+                        case 'KeyR':
+                            // Reset camera position
+                            camera.position.set(3.32, 4.05, -2.71);
+                            camera.lookAt(-0.06, 1.59, 0.44);
+                            controls.target.set(-0.06, 1.59, 0.44);
+                            controls.update();
+                            break;
+                    }}
+                }});
+
+                // Animation loop
+                function animate() {{
+                    requestAnimationFrame(animate);
+                    controls.update();
+                    renderer.render(scene, camera);
+                }}
+                animate();
+            }}
+
+            // Handle window resize
+            window.addEventListener('resize', () => {{
+                camera.aspect = container.clientWidth / container.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(container.clientWidth, container.clientHeight);
+            }});
+        </script>
+    </body>
+    </html>
+    """
+    
+    return html_template
+
 
 def generate_temp_file(model, file_format, tessellation):
     """Generates a temporary file with the specified STL, STEP, or GLTF format."""
@@ -807,9 +1017,7 @@ def generate_temp_file(model, file_format, tessellation):
                 assembly.add(model, name="organ_cabinet")
                 assembly.save(tmpfile.name)
                 
-                # Add lacquered wood material and cathedral lighting
-                add_lacquered_wood_material_to_gltf(tmpfile.name)
-                
+                # Return clean GLTF file without material modifications
                 return tmpfile.name
             except Exception as e:
                 # Fall back to STL if GLTF fails
@@ -978,26 +1186,32 @@ file_path_step, _, _ = generate_and_export_organ_cabinet_cached(
     tessellation=tessellation_value
 )
 
-# Configure PyVista visualization
-if platform.system() == 'Linux':
-    pv.start_xvfb()
-
-plotter = pv.Plotter(window_size=[500, 500])
-plotter.import_gltf(file_path_gltf)
-
-# Set exact camera parameters for perfect organ console view
-plotter.camera.elevation = -90.0
-plotter.camera.azimuth = -30.0
-plotter.camera.position = (65.48, 1823.65, -2466.51)
-plotter.camera.focal_point = (-668.00, 575.00, -334.00)
-plotter.camera.up = (-1000.000, 0.000, 1.000)
-plotter.camera.roll = 0
-plotter.camera.view_angle = 30.0
-
-plotter.set_background("#0e1117")
+# Find wood texture for Three.js viewer
+wood_texture_path = find_wood_texture()
 
 with col3:
-    stv(plotter, key=f"organ_cabinet_{datetime.now()}")
+    st.subheader("3D Model Preview")
+    
+    # Create and display Three.js viewer
+    try:
+        viewer_html = create_threejs_gltf_viewer(
+            gltf_file_path=file_path_gltf,
+            wood_texture_path=wood_texture_path,
+            height=500
+        )
+        
+        # Display the Three.js viewer
+        components.html(viewer_html, height=520, scrolling=False)
+        
+        # Show texture status
+        if wood_texture_path:
+            st.success(f"✅ Using wood texture: {os.path.basename(wood_texture_path)}")
+        else:
+            st.info("ℹ️ No wood texture found - using procedural material")
+            
+    except Exception as e:
+        st.error(f"Failed to create 3D viewer: {str(e)}")
+        st.info("Falling back to basic file download...")
     
     # Create a columns for downloads
     st.subheader("Download Files")
