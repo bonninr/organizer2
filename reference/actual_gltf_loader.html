@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GLTF Debug Loader</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            margin: 0;
+            padding: 20px;
+        }
+        #container {
+            width: 100%;
+            height: 100vh;
+            position: relative;
+        }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ffffff;
+            text-align: center;
+            z-index: 100;
+            font-family: 'Georgia', serif;
+        }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ffffff;
+            font-size: 1.2em;
+            z-index: 200;
+            text-align: center;
+        }
+        .error-details {
+            background: rgba(255, 0, 0, 0.2);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 10px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        .success {
+            background: rgba(0, 255, 0, 0.2);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 10px;
+        }
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="loading">
+            <div>Loading GLTF Model...</div>
+            <div id="status">Checking files...</div>
+        </div>
+        <div id="info" style="display: none;">
+            <h1>GLTF Debug Loader</h1>
+            <p>Debug your CADQuery export</p>
+        </div>
+        <div class="controls">
+            <h3>Debug Info</h3>
+            <div id="debug-output">Checking...</div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script>
+        // Debug information
+        const debugOutput = document.getElementById('debug-output');
+        const status = document.getElementById('status');
+        const loading = document.getElementById('loading');
+        const info = document.getElementById('info');
+
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.getElementById('container').appendChild(renderer.domElement);
+
+        // Camera position
+        camera.position.set(0, 2, 5);
+        camera.lookAt(0, 0, 0);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const spotLight = new THREE.SpotLight(0xffffff, 3);
+        spotLight.position.set(5, 10, 5);
+        spotLight.castShadow = true;
+        scene.add(spotLight);
+
+        // Floor
+        const floorGeometry = new THREE.PlaneGeometry(20, 20);
+        const floorMaterial = new THREE.MeshPhysicalMaterial({
+            color: 0x1a1a1a,
+            metalness: 0.8,
+            roughness: 0.1,
+            clearcoat: 0.5,
+            reflectivity: 0.9
+        });
+        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = -1;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        // Debug function to check what files exist
+        async function checkFiles() {
+            const files = [
+                'board.gltf',
+                'board_.gltf',
+                'board2.gltf',
+                'wood.jpg'
+            ];
+
+            let results = [];
+            
+            for (const file of files) {
+                try {
+                    const response = await fetch(file, { method: 'HEAD' });
+                    results.push(`${file}: ${response.ok ? '✅ EXISTS' : '❌ MISSING'}`);
+                } catch (e) {
+                    results.push(`${file}: ❌ ERROR - ${e.message}`);
+                }
+            }
+
+            debugOutput.innerHTML = results.join('<br>');
+            return results;
+        }
+
+        // Attempt to load GLTF with detailed debugging
+        async function loadGLTF() {
+            const loader = new THREE.GLTFLoader();
+            const textureLoader = new THREE.TextureLoader();
+
+            // First check what files exist
+            const fileStatus = await checkFiles();
+            console.log('File status:', fileStatus);
+
+            // Try to load board.gltf with detailed error handling
+            try {
+                status.textContent = 'Attempting to load board.gltf...';
+                
+                const gltf = await new Promise((resolve, reject) => {
+                    loader.load(
+                        'board.gltf',
+                        resolve,
+                        (xhr) => {
+                            const percent = (xhr.loaded / xhr.total * 100).toFixed(0);
+                            status.textContent = `Loading... ${percent}%`;
+                        },
+                        (error) => {
+                            reject(error);
+                        }
+                    );
+                });
+
+                console.log('✅ GLTF loaded successfully:', gltf);
+                status.textContent = 'GLTF loaded successfully!';
+                
+                // Process the GLTF
+                const model = gltf.scene;
+                
+                // Center and scale
+                const box = new THREE.Box3().setFromObject(model);
+                const center = box.getCenter(new THREE.Vector3());
+                const size = box.getSize(new THREE.Vector3());
+                
+                const maxDim = Math.max(size.x, size.y, size.z);
+                const scale = 3 / maxDim;
+                model.scale.setScalar(scale);
+                model.position.sub(center.multiplyScalar(scale));
+                model.position.y = 0;
+                
+                // Apply wood texture
+                const woodTexture = textureLoader.load('wood.jpg');
+                woodTexture.wrapS = THREE.RepeatWrapping;
+                woodTexture.wrapT = THREE.RepeatWrapping;
+                woodTexture.repeat.set(2, 2);
+                
+                const woodMaterial = new THREE.MeshPhysicalMaterial({
+                    map: woodTexture,
+                    color: 0xffffff,
+                    metalness: 0.0,
+                    roughness: 0.4,
+                    clearcoat: 0.6,
+                    reflectivity: 0.8
+                });
+                
+                model.traverse((child) => {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                        child.material = woodMaterial.clone();
+                    }
+                });
+                
+                scene.add(model);
+                
+                // Success!
+                loading.style.display = 'none';
+                info.style.display = 'block';
+                
+                // Add rotation controls
+                setupControls(model);
+                
+            } catch (error) {
+                console.error('❌ GLTF loading failed:', error);
+                status.innerHTML = `
+                    <div class="error-details">
+                        <strong>Error:</strong> ${error.message}<br>
+                        <strong>Solution:</strong> Check if the .bin file exists
+                    </div>
+                `;
+                
+                // Create fallback wood box
+                createFallbackBox();
+            }
+        }
+
+        function createFallbackBox() {
+            status.textContent = 'Creating fallback wood box...';
+            
+            const boxGeometry = new THREE.BoxGeometry(2, 1.5, 1.5);
+            const textureLoader = new THREE.TextureLoader();
+            
+            const woodTexture = textureLoader.load('wood.jpg', () => {
+                loading.style.display = 'none';
+                info.style.display = 'block';
+            });
+            woodTexture.wrapS = THREE.RepeatWrapping;
+            woodTexture.wrapT = THREE.RepeatWrapping;
+            woodTexture.repeat.set(2, 2);
+            
+            const woodMaterial = new THREE.MeshPhysicalMaterial({
+                map: woodTexture,
+                color: 0xffffff,
+                metalness: 0.0,
+                roughness: 0.4,
+                clearcoat: 0.6,
+                reflectivity: 0.8
+            });
+            
+            const box = new THREE.Mesh(boxGeometry, woodMaterial);
+            box.castShadow = true;
+            box.receiveShadow = true;
+            scene.add(box);
+            
+            loading.style.display = 'none';
+            info.style.display = 'block';
+            
+            setupControls(box);
+        }
+
+        function setupControls(object) {
+            let isDragging = false;
+            let previousMousePosition = { x: 0, y: 0 };
+            let autoRotate = true;
+            let rotation = { x: 0, y: 0 };
+
+            document.addEventListener('mousedown', (event) => {
+                isDragging = true;
+                previousMousePosition = { x: event.clientX, y: event.clientY };
+                autoRotate = false;
+            });
+
+            document.addEventListener('mousemove', (event) => {
+                if (isDragging) {
+                    const deltaMove = {
+                        x: event.clientX - previousMousePosition.x,
+                        y: event.clientY - previousMousePosition.y
+                    };
+
+                    rotation.y += deltaMove.x * 0.01;
+                    rotation.x += deltaMove.y * 0.01;
+
+                    previousMousePosition = { x: event.clientX, y: event.clientY };
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+
+            document.addEventListener('keydown', (event) => {
+                switch(event.code) {
+                    case 'Space':
+                        autoRotate = !autoRotate;
+                        break;
+                    case 'KeyR':
+                        rotation = { x: 0, y: 0 };
+                        break;
+                    case 'ArrowUp':
+                        rotation.x -= 0.1;
+                        break;
+                    case 'ArrowDown':
+                        rotation.x += 0.1;
+                        break;
+                    case 'ArrowLeft':
+                        rotation.y -= 0.1;
+                        break;
+                    case 'ArrowRight':
+                        rotation.y += 0.1;
+                        break;
+                }
+            });
+
+            function animate() {
+                requestAnimationFrame(animate);
+                
+                if (autoRotate) {
+                    rotation.y += 0.005;
+                }
+                
+                object.rotation.x = rotation.x;
+                object.rotation.y = rotation.y;
+                
+                renderer.render(scene, camera);
+            }
+
+            animate();
+        }
+
+        // Start the process
+        loadGLTF();
+    </script>
+</body>
+</html>
