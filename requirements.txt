@@ -5,3 +5,5 @@ nptyping
 ezdxf
 multimethod
 typish
+numpy
+nlopt
