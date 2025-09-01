@@ -7,3 +7,4 @@ typish
 ezdxf
 nptyping
 nlopt
+casadi
