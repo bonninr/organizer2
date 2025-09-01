@@ -1,7 +1,7 @@
 # Core packages
 streamlit
 cadquery==2.5.2
-cadquery-ocp
+cadquery-ocp==7.7
 multimethod
 typish
 ezdxf
