@@ -1,4 +1,4 @@
 # Core packages
-streamlit==1.49
+streamlit
 cadquery
 cadquery-ocp
