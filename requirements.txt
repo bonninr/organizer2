@@ -4,3 +4,4 @@ cadquery
 cadquery-ocp
 multimethod
 typish
+ezdxf
