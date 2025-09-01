@@ -299,12 +299,12 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
             controls.autoRotate = true;
             controls.autoRotateSpeed = 1.0;
 
-            // Hemisphere light with warm tones for church-like ambience
-            const hemiLight = new THREE.HemisphereLight(0xffd4a3, 0x0f0e0d, 0.4);
+            // Hemisphere light with warm tones for church-like ambience - reduced by 65% total (30% + 30% + 30%)
+            const hemiLight = new THREE.HemisphereLight(0xffd4a3, 0x0f0e0d, 0.137);
             scene.add(hemiLight);
             
-            // Add directional light from above with warmer tone
-            const dirLight = new THREE.DirectionalLight(0xffcc99, 0.24); // Reduced by 20% from 0.3
+            // Add directional light from above with warmer tone - reduced by 51% total (30% + 30%)
+            const dirLight = new THREE.DirectionalLight(0xffcc99, 0.118); // Reduced by additional 30% from 0.168
             dirLight.position.set(0, 10, 0);
             dirLight.castShadow = true;
             dirLight.shadow.camera.top = 10;
@@ -331,7 +331,7 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
             ];
             
             lightPositions.forEach((pos, index) => {{
-                const light = new THREE.PointLight(0xffbb66, 0.64, 100, 2); // Reduced by 40% total, warmer color
+                const light = new THREE.PointLight(0xffbb66, 0.314, 100, 2); // Reduced by 51% total (30% + 30%) from 0.64, warmer color
                 light.add(new THREE.Mesh(bulbGeometry, bulbMat.clone()));
                 light.position.set(pos.x, pos.y, pos.z);
                 light.castShadow = true;
@@ -339,44 +339,44 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                 scene.add(light);
             }});
 
-            // Floor material setup with increased reflectivity and bumpiness
+            // Floor material setup with increased reflectivity and enhanced bumpiness
             const floorMat = new THREE.MeshStandardMaterial({{
                 roughness: 0.3,
                 color: 0xffffff,
-                metalness: 0.6,
-                bumpScale: 0.002, // Increased from 0.0005 for more visible floor tiles
-                envMapIntensity: 1.5,
+                metalness: 0.25, // Further reduced from 0.42 to minimize reflectivity
+                bumpScale: 0.012, // Increased bumpiness even more for maximum floor texture visibility
+                envMapIntensity: 0.6, // Further reduced from 1.05 to minimize reflectivity
             }});
             
             // Load the actual textures from Three.js examples
             const textureLoader = new THREE.TextureLoader();
             
-            // Load hardwood2_diffuse.jpg for floor with 40% larger scale
+            // Load hardwood2_diffuse.jpg for floor with extremely large parquet elements
             textureLoader.load("https://threejs.org/examples/textures/hardwood2_diffuse.jpg", function(map) {{
                 map.wrapS = THREE.RepeatWrapping;
                 map.wrapT = THREE.RepeatWrapping;
                 map.anisotropy = 4;
-                map.repeat.set(14, 33.6); // Increased by 40%
+                map.repeat.set(1.5, 3.6); // Reduced by 50% more to make parquet elements 8x larger than original
                 floorMat.map = map;
                 floorMat.needsUpdate = true;
             }});
             
-            // Load hardwood2_bump.jpg for floor with increased effect
+            // Load hardwood2_bump.jpg for floor with extremely large parquet elements
             textureLoader.load("https://threejs.org/examples/textures/hardwood2_bump.jpg", function(map) {{
                 map.wrapS = THREE.RepeatWrapping;
                 map.wrapT = THREE.RepeatWrapping;
                 map.anisotropy = 4;
-                map.repeat.set(14, 33.6); // Increased by 40%
+                map.repeat.set(1.5, 3.6); // Reduced by 50% more to make parquet elements 8x larger than original
                 floorMat.bumpMap = map;
                 floorMat.needsUpdate = true;
             }});
             
-            // Load hardwood2_roughness.jpg for floor
+            // Load hardwood2_roughness.jpg for floor with extremely large parquet elements
             textureLoader.load("https://threejs.org/examples/textures/hardwood2_roughness.jpg", function(map) {{
                 map.wrapS = THREE.RepeatWrapping;
                 map.wrapT = THREE.RepeatWrapping;
                 map.anisotropy = 4;
-                map.repeat.set(14, 33.6); // Increased by 40%
+                map.repeat.set(1.5, 3.6); // Reduced by 50% more to make parquet elements 8x larger than original
                 floorMat.roughnessMap = map;
                 floorMat.needsUpdate = true;
             }});
@@ -404,7 +404,7 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
             const woodTextures = {{
                 "hardwood2_diffuse": 'https://threejs.org/examples/textures/hardwood2_diffuse.jpg',
                 "hardwood2_bump": 'https://threejs.org/examples/textures/hardwood2_bump.jpg',
-                "oak_veneer": 'https://github.com/bonninr/organizer2/raw/refs/heads/master/textures/oak_veneer.jpg',
+                "oak_veneer": '/app/static/oak_veneer.jpg',
                 "local": "{wood_texture_uri or ''}",
                 "fallback": null // Will use procedural color
             }};

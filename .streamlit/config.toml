@@ -1,0 +1,10 @@
+[server]
+# Enable static file serving
+enableStaticServing = true
+
+[theme]
+# Optional: Set a nice theme for the organ cabinet designer
+primaryColor = "#8B4513"
+backgroundColor = "#FAFAFA"
+secondaryBackgroundColor = "#F0F2F6"
+textColor = "#262730"
