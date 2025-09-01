@@ -1,12 +1,14 @@
 pip
 # Core dependencies for Streamlit organ cabinet designer
+scipy
+ntptyping
 streamlit
 pandas
 numpy
-multimethod
-typish
 cadquery
 cadquery-ocp
+multimethod
+typish
 pyvista
 streamlit
 ezdxf
