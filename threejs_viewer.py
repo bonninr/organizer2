@@ -119,7 +119,7 @@ def get_wood_texture_base64(wood_texture_path):
 
 def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=500):
     """
-    Create a Three.js GLTF viewer with lacquered wood material.
+    Create a Three.js GLTF viewer with lacquered wood material and wood type selector.
     
     Args:
         gltf_file_path: Path to the GLTF file
@@ -154,17 +154,17 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
     gltf_json_str = json.dumps(gltf_json)
     gltf_base64 = base64.b64encode(gltf_json_str.encode('utf-8')).decode('utf-8')
     
-    # Handle wood texture - get as base64
+    # Handle local wood texture - get as base64
     wood_texture_uri = get_wood_texture_base64(wood_texture_path)
     
-    # Create the HTML template with Three.js
+    # Create the HTML template with improved Three.js viewer
     html_template = f"""
     <!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Lacquered Wood GLTF Viewer</title>
+        <title>Lacquered Wood GLTF Viewer with Wood Types</title>
         <style>
             body {{
                 margin: 0;
@@ -187,6 +187,35 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                 font-size: 1.1em;
                 z-index: 100;
                 text-align: center;
+            }}
+            #menu {{
+                position: absolute;
+                top: 10px;
+                left: 10px;
+                background: rgba(0, 0, 0, 0.8);
+                padding: 15px;
+                border-radius: 8px;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+                z-index: 200;
+                color: white;
+                font-size: 0.9em;
+                min-width: 200px;
+            }}
+            .control {{
+                margin-bottom: 10px;
+            }}
+            .control label {{
+                display: block;
+                margin-bottom: 5px;
+                font-weight: bold;
+            }}
+            .slider, select {{
+                width: 100%;
+                padding: 5px;
+                border-radius: 4px;
+                border: 1px solid #555;
+                background: #333;
+                color: white;
             }}
             .controls {{
                 position: absolute;
@@ -214,9 +243,22 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                 <div>Loading Lacquered Wood Model...</div>
                 <div style="font-size: 0.9em; margin-top: 10px;">Applying materials...</div>
             </div>
+            
+            <div id="menu">
+                <div class="control">
+                    <label>Wood Texture:</label>
+                    <select id="woodTexture">
+                        <option value="hardwood2_diffuse">Classic Hardwood</option>
+                        <option value="hardwood2_bump">Rich Hardwood</option>
+                        <option value="local" {"selected" if wood_texture_uri else ""}>Local Wood</option>
+                        <option value="fallback">Warm Oak (Fallback)</option>
+                    </select>
+                </div>
+            </div>
+            
             <div class="controls">
                 <strong>Controls:</strong><br>
-                Mouse: Rotate • Wheel: Zoom<br>
+                Mouse: Rotate • Right-click: Pan • Wheel: Zoom<br>
                 A: Auto-rotate • R: Reset view
             </div>
         </div>
@@ -230,151 +272,297 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
 
             // Scene setup
             const scene = new THREE.Scene();
-            const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+            scene.background = new THREE.Color(0x1a1a1a);
+            const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
             const renderer = new THREE.WebGLRenderer({{ antialias: true, alpha: true }});
-            renderer.setSize(container.clientWidth, container.clientHeight);
+            
+            // Enhanced renderer settings for better lacquer look
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            renderer.toneMappingExposure = 1.2;
+            renderer.toneMappingExposure = 1.0;
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            
+            renderer.setSize(container.clientWidth, container.clientHeight);
             container.appendChild(renderer.domElement);
+
+            // Camera position
+            camera.position.set(5, 5, 5);
 
             // Camera controls
             const controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
             controls.enableZoom = true;
+            controls.enablePan = true;
             controls.autoRotate = true;
             controls.autoRotateSpeed = 1.0;
 
-            // Lighting setup for lacquered wood
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-            scene.add(ambientLight);
+            // Hemisphere light with warm tones for church-like ambience
+            const hemiLight = new THREE.HemisphereLight(0xffd4a3, 0x0f0e0d, 0.4);
+            scene.add(hemiLight);
+            
+            // Add directional light from above with warmer tone
+            const dirLight = new THREE.DirectionalLight(0xffcc99, 0.24); // Reduced by 20% from 0.3
+            dirLight.position.set(0, 10, 0);
+            dirLight.castShadow = true;
+            dirLight.shadow.camera.top = 10;
+            dirLight.shadow.camera.bottom = -10;
+            dirLight.shadow.camera.left = -10;
+            dirLight.shadow.camera.right = 10;
+            scene.add(dirLight);
 
-            // Main directional light (cathedral style)
-            const mainLight = new THREE.DirectionalLight(0xfff8e1, 2.5);
-            mainLight.position.set(10, 15, 5);
-            mainLight.castShadow = true;
-            mainLight.shadow.mapSize.width = 2048;
-            mainLight.shadow.mapSize.height = 2048;
-            scene.add(mainLight);
-
-            // Secondary warm light
-            const warmLight = new THREE.SpotLight(0xffcc80, 1.5);
-            warmLight.position.set(-8, 12, 8);
-            warmLight.angle = Math.PI / 4;
-            warmLight.penumbra = 0.3;
-            scene.add(warmLight);
-
-            // Accent light for highlights
-            const accentLight = new THREE.PointLight(0xffffff, 0.8);
-            accentLight.position.set(5, 8, -5);
-            scene.add(accentLight);
-
-            // Reflective floor
-            const floorGeometry = new THREE.PlaneGeometry(50, 50);
-            const floorMaterial = new THREE.MeshPhysicalMaterial({{
-                color: 0x1a1a1a,
-                metalness: 0.1,
-                roughness: 0.05,
-                clearcoat: 0.8,
-                reflectivity: 0.9,
-                transparent: true,
-                opacity: 0.8
+            // 4 Corner lights setup - positioned at 3 meters high over floor corners
+            const bulbGeometry = new THREE.SphereGeometry(0.02, 16, 8);
+            const bulbMat = new THREE.MeshStandardMaterial({{
+                emissive: 0xffffee,
+                emissiveIntensity: 1,
+                color: 0x000000
             }});
-            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-            floor.rotation.x = -Math.PI / 2;
-            floor.position.y = 0;
-            floor.receiveShadow = true;
-            scene.add(floor);
+            
+            // Create 4 lights for the corners (floor is 20x20, so corners are at ±10, ±10)
+            const bulbLights = [];
+            const lightPositions = [
+                {{ x: -8, y: 3.0, z: -8 }}, // Front-left corner
+                {{ x: 8, y: 3.0, z: -8 }},  // Front-right corner
+                {{ x: -8, y: 3.0, z: 8 }},  // Back-left corner
+                {{ x: 8, y: 3.0, z: 8 }}    // Back-right corner
+            ];
+            
+            lightPositions.forEach((pos, index) => {{
+                const light = new THREE.PointLight(0xffbb66, 0.64, 100, 2); // Reduced by 40% total, warmer color
+                light.add(new THREE.Mesh(bulbGeometry, bulbMat.clone()));
+                light.position.set(pos.x, pos.y, pos.z);
+                light.castShadow = true;
+                bulbLights.push(light);
+                scene.add(light);
+            }});
 
-            // Load GLTF model
-            const loader = new THREE.GLTFLoader();
+            // Floor material setup with increased reflectivity and bumpiness
+            const floorMat = new THREE.MeshStandardMaterial({{
+                roughness: 0.3,
+                color: 0xffffff,
+                metalness: 0.6,
+                bumpScale: 0.002, // Increased from 0.0005 for more visible floor tiles
+                envMapIntensity: 1.5,
+            }});
+            
+            // Load the actual textures from Three.js examples
             const textureLoader = new THREE.TextureLoader();
+            
+            // Load hardwood2_diffuse.jpg for floor with 40% larger scale
+            textureLoader.load("https://threejs.org/examples/textures/hardwood2_diffuse.jpg", function(map) {{
+                map.wrapS = THREE.RepeatWrapping;
+                map.wrapT = THREE.RepeatWrapping;
+                map.anisotropy = 4;
+                map.repeat.set(14, 33.6); // Increased by 40%
+                floorMat.map = map;
+                floorMat.needsUpdate = true;
+            }});
+            
+            // Load hardwood2_bump.jpg for floor with increased effect
+            textureLoader.load("https://threejs.org/examples/textures/hardwood2_bump.jpg", function(map) {{
+                map.wrapS = THREE.RepeatWrapping;
+                map.wrapT = THREE.RepeatWrapping;
+                map.anisotropy = 4;
+                map.repeat.set(14, 33.6); // Increased by 40%
+                floorMat.bumpMap = map;
+                floorMat.needsUpdate = true;
+            }});
+            
+            // Load hardwood2_roughness.jpg for floor
+            textureLoader.load("https://threejs.org/examples/textures/hardwood2_roughness.jpg", function(map) {{
+                map.wrapS = THREE.RepeatWrapping;
+                map.wrapT = THREE.RepeatWrapping;
+                map.anisotropy = 4;
+                map.repeat.set(14, 33.6); // Increased by 40%
+                floorMat.roughnessMap = map;
+                floorMat.needsUpdate = true;
+            }});
+            
+            // Use PlaneBufferGeometry exactly like the source
+            const floorGeometry = new THREE.PlaneBufferGeometry(20, 20);
+            const floorMesh = new THREE.Mesh(floorGeometry, floorMat);
+            floorMesh.receiveShadow = true;
+            floorMesh.rotation.x = -Math.PI / 2.0;
+            scene.add(floorMesh);
 
-            // Promise-based texture loading function
-            function loadAndApplyWoodTexture(model) {{
-                return new Promise((resolve, reject) => {{
-                    const materialProps = {{
-                        color: 0xd2b48c, // Default tan wood color
-                        metalness: 0.0,
-                        roughness: 0.4,
-                        clearcoat: 0.6,
-                        clearcoatRoughness: 0.1,
-                        reflectivity: 0.8,
-                        envMapIntensity: 1.0
-                    }};
+            // Environment map for reflections - using a more neutral/indoor environment
+            const envTextureLoader = new THREE.CubeTextureLoader();
+            const envMap = envTextureLoader.load([
+                'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/cube/pisa/px.png',
+                'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/cube/pisa/nx.png',
+                'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/cube/pisa/py.png',
+                'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/cube/pisa/ny.png',
+                'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/cube/pisa/pz.png',
+                'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/cube/pisa/nz.png',
+            ]);
+            scene.environment = envMap;
+            
+            // Wood textures database
+            const woodTextures = {{
+                "hardwood2_diffuse": 'https://threejs.org/examples/textures/hardwood2_diffuse.jpg',
+                "hardwood2_bump": 'https://threejs.org/examples/textures/hardwood2_bump.jpg',
+                "local": "{wood_texture_uri or ''}",
+                "fallback": null // Will use procedural color
+            }};
 
-                    {"" if not wood_texture_uri else f'''
-                    // Load wood texture if available
-                    console.log('🔄 Loading wood texture...');
-                    
-                    const textureLoader = new THREE.TextureLoader();
-                    textureLoader.load(
-                        "{wood_texture_uri}",
-                        function(texture) {{
-                            console.log('✅ Wood texture loaded successfully');
-                            
-                            // Configure texture
-                            texture.wrapS = THREE.RepeatWrapping;
-                            texture.wrapT = THREE.RepeatWrapping;
-                            texture.repeat.set(2, 2);
-                            texture.encoding = THREE.sRGBEncoding;
-                            texture.needsUpdate = true;
-                            
-                            // Create material with texture
-                            const woodMaterial = new THREE.MeshPhysicalMaterial({{
-                                map: texture,
-                                color: 0xffffff, // White to show texture
-                                metalness: 0.0,
-                                roughness: 0.4,
-                                clearcoat: 0.6,
-                                clearcoatRoughness: 0.1,
-                                reflectivity: 0.8,
-                                envMapIntensity: 1.0
-                            }});
-                            
-                            // Apply to all meshes
-                            model.traverse((child) => {{
-                                if (child.isMesh) {{
-                                    child.material = woodMaterial.clone();
-                                    child.material.needsUpdate = true;
-                                }}
-                            }});
-                            
-                            console.log('✅ Wood material applied to all meshes');
-                            resolve(model);
-                        }},
-                        undefined,
-                        function(error) {{
-                            console.error('❌ Failed to load texture:', error);
-                            // Apply fallback material without texture
-                            const fallbackMaterial = new THREE.MeshPhysicalMaterial(materialProps);
-                            model.traverse((child) => {{
-                                if (child.isMesh) {{
-                                    child.material = fallbackMaterial.clone();
-                                }}
-                            }});
-                            resolve(model); // Still resolve, just with fallback material
-                        }}
-                    );
-                    '''}
-                    
-                    {"" if wood_texture_uri else f'''
-                    // No texture available, use fallback material
-                    console.log('ℹ️ No texture available, using fallback material');
-                    const fallbackMaterial = new THREE.MeshPhysicalMaterial(materialProps);
-                    model.traverse((child) => {{
-                        if (child.isMesh) {{
-                            child.material = fallbackMaterial.clone();
-                        }}
+            // Global variables for model texture management
+            let currentModel = null;
+            let modelMaterials = [];
+
+            // Create fallback wood material (warm oak color)
+            function createWoodMaterial(textureUrl = null) {{
+                const material = new THREE.MeshPhysicalMaterial({{
+                    color: textureUrl ? 0xffffff : 0xA0722A, // White for texture, oak color for fallback
+                    metalness: 0.0,
+                    roughness: 0.2,
+                    clearcoat: 0.8,
+                    clearcoatRoughness: 0.1,
+                    envMapIntensity: 1.0,
+                    reflectivity: 0.8
+                }});
+
+                if (textureUrl && textureUrl !== '') {{
+                    textureLoader.load(textureUrl, function(texture) {{
+                        texture.wrapS = THREE.RepeatWrapping;
+                        texture.wrapT = THREE.RepeatWrapping;
+                        texture.repeat.set(2, 2);
+                        texture.anisotropy = 4;
+                        material.map = texture;
+                        material.needsUpdate = true;
+                        console.log('✅ Texture loaded and applied:', textureUrl);
+                    }}, undefined, function(error) {{
+                        console.warn('❌ Failed to load texture:', textureUrl, error);
                     }});
-                    resolve(model);
-                    '''}
+                }}
+
+                return material;
+            }}
+
+            // Apply texture to existing materials (better approach)
+            function applyTextureToModel(model, texture) {{
+                modelMaterials = []; // Clear previous materials tracking
+                model.traverse((child) => {{
+                    if (child.isMesh) {{
+                        // CRITICAL: Ensure UV coordinates exist for texture mapping
+                        if (!child.geometry.attributes.uv) {{
+                            console.log('🔧 Generating UV coordinates for mesh:', child.name || 'unnamed');
+                            
+                            // Get geometry
+                            const geometry = child.geometry;
+                            const positionAttribute = geometry.attributes.position;
+                            const vertexCount = positionAttribute.count;
+                            
+                            // Create UV coordinates using triplanar projection
+                            const uvs = new Float32Array(vertexCount * 2);
+                            const position = new THREE.Vector3();
+                            const normal = new THREE.Vector3();
+                            
+                            // Calculate bounding box for normalization
+                            geometry.computeBoundingBox();
+                            const box = geometry.boundingBox;
+                            const size = new THREE.Vector3();
+                            box.getSize(size);
+                            
+                            // Compute vertex normals if not present
+                            if (!geometry.attributes.normal) {{
+                                geometry.computeVertexNormals();
+                            }}
+                            
+                            const normalAttribute = geometry.attributes.normal;
+                            
+                            for (let i = 0; i < vertexCount; i++) {{
+                                position.fromBufferAttribute(positionAttribute, i);
+                                normal.fromBufferAttribute(normalAttribute, i);
+                                
+                                // Use triplanar mapping - project based on normal direction
+                                let u, v;
+                                const absNormal = new THREE.Vector3(
+                                    Math.abs(normal.x),
+                                    Math.abs(normal.y), 
+                                    Math.abs(normal.z)
+                                );
+                                
+                                if (absNormal.x >= absNormal.y && absNormal.x >= absNormal.z) {{
+                                    // Project on YZ plane (for X-facing surfaces)
+                                    u = (position.z - box.min.z) / size.z;
+                                    v = (position.y - box.min.y) / size.y;
+                                }} else if (absNormal.y >= absNormal.x && absNormal.y >= absNormal.z) {{
+                                    // Project on XZ plane (for Y-facing surfaces)
+                                    u = (position.x - box.min.x) / size.x;
+                                    v = (position.z - box.min.z) / size.z;
+                                }} else {{
+                                    // Project on XY plane (for Z-facing surfaces)
+                                    u = (position.x - box.min.x) / size.x;
+                                    v = (position.y - box.min.y) / size.y;
+                                }}
+                                
+                                uvs[i * 2] = u;
+                                uvs[i * 2 + 1] = v;
+                            }}
+                            
+                            // Add UV attribute to geometry
+                            geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+                            console.log('✅ UV coordinates generated');
+                        }}
+                        
+                        // Keep the existing material but update its properties for wood look
+                        const material = child.material;
+                        
+                        // Convert to MeshPhysicalMaterial if it isn't already
+                        if (!(material instanceof THREE.MeshPhysicalMaterial)) {{
+                            const newMaterial = new THREE.MeshPhysicalMaterial({{
+                                color: 0xffffff,
+                                metalness: 0.0,
+                                roughness: 0.2,
+                                clearcoat: 0.8,
+                                clearcoatRoughness: 0.1,
+                                envMapIntensity: 1.0,
+                                reflectivity: 0.8
+                            }});
+                            child.material = newMaterial;
+                        }}
+                        
+                        // Apply texture if provided
+                        if (texture) {{
+                            child.material.map = texture;
+                            child.material.map.needsUpdate = true;
+                            child.material.color.setHex(0xffffff); // White base for texture
+                        }} else {{
+                            // Use warm oak color as fallback and remove texture
+                            child.material.map = null;
+                            child.material.color.setHex(0xA0722A);
+                        }}
+                        
+                        // Set wood material properties with fixed values
+                        child.material.metalness = 0.0;
+                        child.material.roughness = 0.2;
+                        child.material.clearcoat = 0.8;
+                        child.material.clearcoatRoughness = 0.1;
+                        child.material.envMapIntensity = 1.0;
+                        child.material.reflectivity = 0.8;
+                        child.material.needsUpdate = true;
+                        
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                        modelMaterials.push(child.material);
+                        console.log('🎨 Material updated for mesh:', child.name || 'unnamed');
+                    }}
+                }});
+                console.log('🎨 Total meshes updated:', modelMaterials.length);
+            }}
+
+            // Apply material properties only (for sliders)
+            function updateMaterialProperties() {{
+                modelMaterials.forEach(material => {{
+                    material.needsUpdate = true;
                 }});
             }}
 
-            // Load and process GLTF
+            // Load GLTF model
+            const loader = new THREE.GLTFLoader();
+
             try {{
                 // Convert base64 to blob URL for GLTF loader
                 const binaryString = atob("{gltf_base64}");
@@ -387,40 +575,151 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
 
                 loader.load(
                     gltfUrl,
-                    async function(gltf) {{
+                    function(gltf) {{
                         console.log('✅ GLTF loaded successfully');
                         
-                        const model = gltf.scene;
+                        currentModel = gltf.scene;
                         
                         // Center and scale the model
-                        const box = new THREE.Box3().setFromObject(model);
+                        const box = new THREE.Box3().setFromObject(currentModel);
                         const center = box.getCenter(new THREE.Vector3());
                         const size = box.getSize(new THREE.Vector3());
                         
                         const maxDim = Math.max(size.x, size.y, size.z);
                         const scale = 4 / maxDim;
-                        model.scale.setScalar(scale);
-                        model.position.sub(center.multiplyScalar(scale));
-                        model.position.y = 0;
+                        currentModel.scale.setScalar(scale);
+                        currentModel.position.sub(center.multiplyScalar(scale));
+                        currentModel.position.y = 0;
                         
-                        // Set shadow properties for all meshes
-                        model.traverse((child) => {{
-                            if (child.isMesh) {{
-                                child.castShadow = true;
-                                child.receiveShadow = true;
-                            }}
+                        // Apply initial wood texture using your recommended approach
+                        const initialTextureUrl = woodTextures.local && woodTextures.local !== '' 
+                            ? woodTextures.local
+                            : 'https://threejs.org/examples/textures/hardwood2_diffuse.jpg'; // Default hardwood
+                        
+                        // Load initial texture and apply to model
+                        textureLoader.load(initialTextureUrl, function(myTexture) {{
+                            myTexture.wrapS = THREE.RepeatWrapping;
+                            myTexture.wrapT = THREE.RepeatWrapping;
+                            myTexture.repeat.set(2, 2);
+                            myTexture.anisotropy = 4;
+                            
+                            // Apply texture using your recommended pattern
+                            currentModel.traverse(function(child) {{
+                                if (child.isMesh) {{
+                                    // CRITICAL: Generate UV coordinates if missing
+                                    if (!child.geometry.attributes.uv) {{
+                                        console.log('🔧 Generating UV coordinates for mesh:', child.name || 'unnamed');
+                                        
+                                        // Get geometry
+                                        const geometry = child.geometry;
+                                        const positionAttribute = geometry.attributes.position;
+                                        const vertexCount = positionAttribute.count;
+                                        
+                                        // Create UV coordinates using triplanar projection
+                                        const uvs = new Float32Array(vertexCount * 2);
+                                        const position = new THREE.Vector3();
+                                        const normal = new THREE.Vector3();
+                                        
+                                        // Calculate bounding box for normalization
+                                        geometry.computeBoundingBox();
+                                        const box = geometry.boundingBox;
+                                        const size = new THREE.Vector3();
+                                        box.getSize(size);
+                                        
+                                        // Compute vertex normals if not present
+                                        if (!geometry.attributes.normal) {{
+                                            geometry.computeVertexNormals();
+                                        }}
+                                        
+                                        const normalAttribute = geometry.attributes.normal;
+                                        
+                                        for (let i = 0; i < vertexCount; i++) {{
+                                            position.fromBufferAttribute(positionAttribute, i);
+                                            normal.fromBufferAttribute(normalAttribute, i);
+                                            
+                                            // Use triplanar mapping - project based on normal direction
+                                            let u, v;
+                                            const absNormal = new THREE.Vector3(
+                                                Math.abs(normal.x),
+                                                Math.abs(normal.y), 
+                                                Math.abs(normal.z)
+                                            );
+                                            
+                                            if (absNormal.x >= absNormal.y && absNormal.x >= absNormal.z) {{
+                                                // Project on YZ plane (for X-facing surfaces)
+                                                u = (position.z - box.min.z) / size.z;
+                                                v = (position.y - box.min.y) / size.y;
+                                            }} else if (absNormal.y >= absNormal.x && absNormal.y >= absNormal.z) {{
+                                                // Project on XZ plane (for Y-facing surfaces)
+                                                u = (position.x - box.min.x) / size.x;
+                                                v = (position.z - box.min.z) / size.z;
+                                            }} else {{
+                                                // Project on XY plane (for Z-facing surfaces)
+                                                u = (position.x - box.min.x) / size.x;
+                                                v = (position.y - box.min.y) / size.y;
+                                            }}
+                                            
+                                            uvs[i * 2] = u;
+                                            uvs[i * 2 + 1] = v;
+                                        }}
+                                        
+                                        // Add UV attribute to geometry
+                                        geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+                                        console.log('✅ UV coordinates generated');
+                                    }}
+                                    
+                                    // Convert to MeshPhysicalMaterial for lacquer effect
+                                    const newMaterial = new THREE.MeshPhysicalMaterial({{
+                                        map: myTexture,
+                                        color: 0xffffff,
+                                        metalness: 0.0,
+                                        roughness: 0.2,
+                                        clearcoat: 0.8,
+                                        clearcoatRoughness: 0.1,
+                                        envMapIntensity: 1.0,
+                                        reflectivity: 0.8
+                                    }});
+                                    
+                                    child.material = newMaterial;
+                                    child.material.needsUpdate = true;
+                                    child.castShadow = true;
+                                    child.receiveShadow = true;
+                                    modelMaterials.push(child.material);
+                                    console.log('🎨 Texture applied to mesh:', child.name || 'unnamed');
+                                }}
+                            }});
+                            
+                            console.log('✅ Initial wood texture applied successfully');
+                        }}, undefined, function(error) {{
+                            // Fallback to no texture
+                            currentModel.traverse(function(child) {{
+                                if (child.isMesh) {{
+                                    const fallbackMaterial = new THREE.MeshPhysicalMaterial({{
+                                        color: 0xA0722A, // Warm oak color
+                                        metalness: 0.0,
+                                        roughness: 0.2,
+                                        clearcoat: 0.8,
+                                        clearcoatRoughness: 0.1,
+                                        envMapIntensity: 1.0,
+                                        reflectivity: 0.8
+                                    }});
+                                    
+                                    child.material = fallbackMaterial;
+                                    child.material.needsUpdate = true;
+                                    child.castShadow = true;
+                                    child.receiveShadow = true;
+                                    modelMaterials.push(child.material);
+                                }}
+                            }});
+                            console.log('✅ Fallback oak material applied');
                         }});
                         
-                        // Load texture first, then apply materials and add to scene
-                        await loadAndApplyWoodTexture(model);
-                        
-                        // Add model to scene only after texture is loaded
-                        scene.add(model);
+                        // Add model to scene
+                        scene.add(currentModel);
                         
                         // Position camera for optimal view
-                        camera.position.set(3.32, 4.05, -2.71);
-                        camera.lookAt(-0.06, 1.59, 0.44);
-                        controls.target.set(-0.06, 1.59, 0.44);
+                        camera.lookAt(0, 1, 0);
+                        controls.target.set(0, 1, 0);
                         controls.update();
                         
                         // Hide loading indicator
@@ -429,8 +728,7 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                         // Clean up blob URL
                         URL.revokeObjectURL(gltfUrl);
                         
-                        // Setup controls and animation
-                        setupInteraction(model);
+                        setupControls();
                     }},
                     function(xhr) {{
                         const percent = (xhr.loaded / xhr.total * 100).toFixed(0);
@@ -459,51 +757,81 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                 `;
             }}
 
-            function setupInteraction(model) {{
+            // Setup UI controls
+            function setupControls() {{
+                const woodTextureSelect = document.getElementById('woodTexture');
+
+                // Wood texture selector - using proper texture replacement approach
+                woodTextureSelect.addEventListener('change', (event) => {{
+                    const selectedTexture = event.target.value;
+                    
+                    if (selectedTexture === 'fallback') {{
+                        // Apply fallback material without texture
+                        applyTextureToModel(currentModel, null);
+                    }} else {{
+                        const textureUrl = woodTextures[selectedTexture];
+                        
+                        // Load new texture and apply
+                        textureLoader.load(textureUrl, function(newTexture) {{
+                            newTexture.wrapS = THREE.RepeatWrapping;
+                            newTexture.wrapT = THREE.RepeatWrapping;
+                            newTexture.repeat.set(2, 2);
+                            newTexture.anisotropy = 4;
+                            
+                            // Apply texture to model using proper approach
+                            applyTextureToModel(currentModel, newTexture);
+                            
+                            console.log('🎨 Wood texture changed to:', selectedTexture);
+                        }}, undefined, function(error) {{
+                            console.warn('❌ Failed to load texture:', textureUrl, error);
+                            // Apply fallback if texture loading fails
+                            applyTextureToModel(currentModel, null);
+                        }});
+                    }}
+                }});
+
+                // Keyboard controls
                 let hasUserInteracted = false;
                 
-                // Stop auto-rotation on first user interaction
-                function stopAutoRotateOnInteraction() {{
-                    if (!hasUserInteracted) {{
-                        hasUserInteracted = true;
-                        controls.autoRotate = false;
-                        console.log('Auto-rotation stopped due to user interaction');
-                    }}
-                }}
-                
-                // Add event listeners for user interactions (only to stop auto-rotation once)
-                controls.addEventListener('start', stopAutoRotateOnInteraction);
-                renderer.domElement.addEventListener('wheel', stopAutoRotateOnInteraction, {{ passive: false }});
-                renderer.domElement.addEventListener('mousedown', stopAutoRotateOnInteraction);
-                renderer.domElement.addEventListener('touchstart', stopAutoRotateOnInteraction);
-                
-                // Keyboard controls
                 document.addEventListener('keydown', (event) => {{
                     switch(event.code) {{
                         case 'KeyA':
                             event.preventDefault();
                             controls.autoRotate = !controls.autoRotate;
-                            hasUserInteracted = true; // Mark as interacted when manually toggling
+                            hasUserInteracted = true;
                             console.log('Auto-rotation toggled:', controls.autoRotate);
                             break;
                         case 'KeyR':
                             // Reset camera position
-                            camera.position.set(3.32, 4.05, -2.71);
-                            camera.lookAt(-0.06, 1.59, 0.44);
-                            controls.target.set(-0.06, 1.59, 0.44);
+                            camera.position.set(5, 5, 5);
+                            camera.lookAt(0, 1, 0);
+                            controls.target.set(0, 1, 0);
                             controls.update();
                             break;
                     }}
                 }});
 
-                // Animation loop
-                function animate() {{
-                    requestAnimationFrame(animate);
-                    controls.update();
-                    renderer.render(scene, camera);
-                }}
-                animate();
+                // Stop auto-rotation on first user interaction
+                const stopAutoRotateOnInteraction = () => {{
+                    if (!hasUserInteracted) {{
+                        hasUserInteracted = true;
+                        controls.autoRotate = false;
+                        console.log('Auto-rotation stopped due to user interaction');
+                    }}
+                }};
+                
+                renderer.domElement.addEventListener('wheel', stopAutoRotateOnInteraction, {{ passive: false }});
+                renderer.domElement.addEventListener('mousedown', stopAutoRotateOnInteraction);
+                renderer.domElement.addEventListener('touchstart', stopAutoRotateOnInteraction);
             }}
+
+            // Animation loop
+            function animate() {{
+                requestAnimationFrame(animate);
+                controls.update();
+                renderer.render(scene, camera);
+            }}
+            animate();
 
             // Handle window resize
             window.addEventListener('resize', () => {{

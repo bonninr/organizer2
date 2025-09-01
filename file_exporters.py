@@ -37,19 +37,186 @@ class Tessellation(Enum):
     FINE = 1e-5
 
 
-def generate_temp_file(model, file_format, tessellation):
+def add_wood_texture_to_gltf(gltf_file_path):
     """
-    Generates a temporary file with the specified STL, STEP, or GLTF format.
+    Add wood texture and material to an existing GLTF file.
+    
+    Args:
+        gltf_file_path: Path to the existing GLTF file
+    
+    Returns:
+        str: Path to the enhanced GLTF file
+    """
+    try:
+        # Read the existing GLTF file
+        with open(gltf_file_path, 'r') as f:
+            gltf_data = json.load(f)
+        
+        # Find a wood texture file
+        wood_texture_path = None
+        for pattern in ["wood*.jpg", "wood*.jpeg", "wood*.png"]:
+            import glob
+            files = glob.glob(pattern)
+            if files:
+                wood_texture_path = files[0]
+                break
+        
+        if wood_texture_path and os.path.exists(wood_texture_path):
+            # Encode wood texture as base64
+            with open(wood_texture_path, 'rb') as f:
+                texture_data = f.read()
+            texture_base64 = base64.b64encode(texture_data).decode('utf-8')
+            
+            # Determine MIME type
+            if wood_texture_path.lower().endswith('.jpg') or wood_texture_path.lower().endswith('.jpeg'):
+                mime_type = "image/jpeg"
+            else:
+                mime_type = "image/png"
+            
+            texture_uri = f"data:{mime_type};base64,{texture_base64}"
+        else:
+            # Use online wood texture as fallback
+            texture_uri = "https://threejs.org/examples/textures/hardwood2_diffuse.jpg"
+        
+        # Add texture to GLTF
+        if "images" not in gltf_data:
+            gltf_data["images"] = []
+        
+        gltf_data["images"].append({
+            "uri": texture_uri,
+            "name": "wood_texture"
+        })
+        
+        # Add texture sampler
+        if "textures" not in gltf_data:
+            gltf_data["textures"] = []
+        
+        gltf_data["textures"].append({
+            "source": len(gltf_data["images"]) - 1,
+            "name": "wood_texture_sampler"
+        })
+        
+        # Create wood material
+        if "materials" not in gltf_data:
+            gltf_data["materials"] = []
+        
+        wood_material = {
+            "name": "LacqueredWood",
+            "pbrMetallicRoughness": {
+                "baseColorTexture": {
+                    "index": len(gltf_data["textures"]) - 1,
+                    "texCoord": 0
+                },
+                "baseColorFactor": [1.0, 1.0, 1.0, 1.0],
+                "metallicFactor": 0.0,
+                "roughnessFactor": 0.2
+            },
+            "extensions": {
+                "KHR_materials_clearcoat": {
+                    "clearcoatFactor": 0.8,
+                    "clearcoatRoughnessFactor": 0.1
+                }
+            }
+        }
+        
+        gltf_data["materials"].append(wood_material)
+        
+        # Apply material to all meshes
+        if "meshes" in gltf_data:
+            material_index = len(gltf_data["materials"]) - 1
+            for mesh in gltf_data["meshes"]:
+                if "primitives" in mesh:
+                    for primitive in mesh["primitives"]:
+                        primitive["material"] = material_index
+        
+        # Add required extensions
+        if "extensionsUsed" not in gltf_data:
+            gltf_data["extensionsUsed"] = []
+        
+        if "KHR_materials_clearcoat" not in gltf_data["extensionsUsed"]:
+            gltf_data["extensionsUsed"].append("KHR_materials_clearcoat")
+        
+        # Write enhanced GLTF file
+        enhanced_path = gltf_file_path.replace('.gltf', '_textured.gltf')
+        with open(enhanced_path, 'w') as f:
+            json.dump(gltf_data, f, indent=2)
+        
+        try:
+            import streamlit as st
+            st.success("✅ Wood texture embedded into GLTF!")
+        except ImportError:
+            print("✅ Wood texture embedded into GLTF!")
+        
+        return enhanced_path
+        
+    except Exception as e:
+        try:
+            import streamlit as st
+            st.warning(f"Failed to add texture to GLTF: {str(e)}")
+        except ImportError:
+            print(f"Failed to add texture to GLTF: {str(e)}")
+        
+        # Return original file if enhancement fails
+        return gltf_file_path
+
+
+def generate_temp_file(model, file_format, quality="medium"):
+    """
+    Generates a temporary file with the specified format.
     
     Args:
         model: CadQuery model object
-        file_format: "gltf", "stl", or "step"
-        tessellation: "coarse", "medium", or "fine"
+        file_format: "threejs", "gltf", "stl", or "step"
+        quality: "coarse", "medium", or "fine" (used for STL/STEP only)
     
     Returns:
         str: Path to the generated temporary file
     """
-    if file_format.lower() == "gltf":
+    if file_format.lower() == "threejs":
+        # Use CadQuery's built-in Three.js export (TJS format)
+        file_suffix = ".json"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_suffix) as tmpfile:
+            try:
+                # Use the official CadQuery Three.js export via exporters module
+                tolerance = getattr(Tessellation, quality.upper()).value
+                cq.exporters.export(
+                    model,
+                    tmpfile.name,
+                    exportType=cq.exporters.ExportTypes.TJS,
+                    tolerance=tolerance,
+                    angularTolerance=0.1
+                )
+                
+                try:
+                    import streamlit as st
+                    st.success("✅ Three.js geometry export successful!")
+                except ImportError:
+                    print("✅ Three.js geometry export successful!")
+                
+                return tmpfile.name
+                
+            except Exception as e:
+                # If Three.js export fails, fall back to GLTF
+                try:
+                    import streamlit as st
+                    st.warning(f"Three.js export failed: {str(e)}, using GLTF instead")
+                except ImportError:
+                    print(f"Three.js export failed: {str(e)}, using GLTF instead")
+                
+                # Fall back to GLTF
+                gltf_tmpfile = tempfile.NamedTemporaryFile(delete=False, suffix=".gltf")
+                try:
+                    assembly = cq.Assembly()
+                    assembly.add(model, name="organ_cabinet")
+                    assembly.save(gltf_tmpfile.name)
+                    return gltf_tmpfile.name
+                except Exception as gltf_error:
+                    # Final fallback to STL
+                    stl_tmpfile = tempfile.NamedTemporaryFile(delete=False, suffix=".stl")
+                    cq.exporters.export(model, stl_tmpfile.name, exportType=cq.exporters.ExportTypes.STL)
+                    return stl_tmpfile.name
+                
+    elif file_format.lower() == "gltf":
         file_suffix = ".gltf"
         with tempfile.NamedTemporaryFile(delete=False, suffix=file_suffix) as tmpfile:
             try:
@@ -58,15 +225,18 @@ def generate_temp_file(model, file_format, tessellation):
                 assembly.add(model, name="organ_cabinet")
                 assembly.save(tmpfile.name)
                 
-                # Return clean GLTF file without material modifications
-                return tmpfile.name
+                # Enhance the GLTF file with embedded wood texture and material
+                enhanced_gltf_path = add_wood_texture_to_gltf(tmpfile.name)
+                return enhanced_gltf_path
+                
             except Exception as e:
                 # Fall back to STL if GLTF fails
                 import streamlit as st
                 st.warning(f"GLTF export failed ({str(e)}), using STL format")
                 stl_tmpfile = tempfile.NamedTemporaryFile(delete=False, suffix=".stl")
+                tolerance = getattr(Tessellation, quality.upper()).value
                 cq.exporters.export(model, stl_tmpfile.name, exportType=cq.exporters.ExportTypes.STL, 
-                                   tolerance=getattr(Tessellation, tessellation.upper()).value)
+                                   tolerance=tolerance)
                 return stl_tmpfile.name
     elif file_format.lower() == "stl":
         file_suffix = ".stl"
@@ -77,9 +247,11 @@ def generate_temp_file(model, file_format, tessellation):
     else:
         raise ValueError(f"Unsupported file format: {file_format}")
 
+    # For STL and STEP, use the quality parameter
+    tolerance = getattr(Tessellation, quality.upper()).value
     with tempfile.NamedTemporaryFile(delete=False, suffix=file_suffix) as tmpfile:
         cq.exporters.export(model, tmpfile.name, exportType=export_type, 
-                           tolerance=getattr(Tessellation, tessellation.upper()).value)
+                           tolerance=tolerance)
         return tmpfile.name
 
 

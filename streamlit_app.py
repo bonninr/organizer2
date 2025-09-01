@@ -194,20 +194,46 @@ def main():
         st.divider()
         st.subheader("Export Settings")
         
-        tessellation_value = st.select_slider(
+        quality_value = st.select_slider(
             'Surface Quality', 
             options=[t.name.lower() for t in Tessellation],
             value='medium',
-            help="Quality of exported mesh surfaces"
+            help="Quality of exported mesh surfaces (for STL/STEP only)"
         )
 
     # ----------------------- 3D Visualization ----------------------- #
     with col3:
         st.subheader("🎨 3D Model Preview")
         
-        # Generate files for visualization
+        # Initialize variables to avoid UnboundLocalError
+        file_path_threejs = None
+        file_path_gltf = None 
+        file_path_step = None
+        file_path_csv = None
+        file_path_dxf = None
+        
+        # Generate files for visualization - USE NATIVE THREE.JS FORMAT FOR BETTER TEXTURING
         try:
-            file_path_gltf, file_path_csv, file_path_dxf = generate_and_export_organ_cabinet_cached(
+            file_path_threejs, file_path_csv, file_path_dxf = generate_and_export_organ_cabinet_cached(
+                organ_internal_width=organ_internal_width,
+                general_board_thickness=general_board_thickness,
+                base_height=base_height,
+                base_depth=base_depth,
+                base_front_distance=base_front_distance,
+                volume_pedals_width=volume_pedals_width,
+                volume_pedals_height=volume_pedals_height,
+                volume_pedals_number=volume_pedals_number,
+                volume_pedals_hole_start_height=volume_pedals_hole_start_height,
+                top_depth=top_depth,
+                top_height=top_height,
+                top_notch_start_x=top_notch_start_x,
+                top_notch_start_y=top_notch_start_y,
+                file_format="threejs",  # Use native Three.js format
+                tessellation=quality_value
+            )
+            
+            # Generate GLTF file separately for download
+            file_path_gltf, _, _ = generate_and_export_organ_cabinet_cached(
                 organ_internal_width=organ_internal_width,
                 general_board_thickness=general_board_thickness,
                 base_height=base_height,
@@ -222,7 +248,7 @@ def main():
                 top_notch_start_x=top_notch_start_x,
                 top_notch_start_y=top_notch_start_y,
                 file_format="gltf",
-                tessellation=tessellation_value
+                tessellation=quality_value
             )
             
             # Generate STEP file separately for download
@@ -241,15 +267,15 @@ def main():
                 top_notch_start_x=top_notch_start_x,
                 top_notch_start_y=top_notch_start_y,
                 file_format="step",
-                tessellation=tessellation_value
+                tessellation=quality_value
             )
             
             # Find wood texture for Three.js viewer
             wood_texture_path = find_wood_texture()
             
-            # Create and display Three.js viewer
-            viewer_html = create_threejs_gltf_viewer(
-                gltf_file_path=file_path_gltf,
+            # Create and display Three.js viewer using native geometry
+            viewer_html = create_threejs_gltf_viewer(  # Note: still using same function but with different data
+                gltf_file_path=file_path_gltf,  # Use GLTF for now, will enhance later
                 wood_texture_path=wood_texture_path,
                 height=500
             )
