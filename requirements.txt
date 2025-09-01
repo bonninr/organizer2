@@ -4,6 +4,7 @@ streamlit
 pandas
 numpy
 cadquery
+cadquery-ocp
 pyvista
 streamlit
 ezdxf
