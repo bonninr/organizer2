@@ -1,13 +1,3 @@
-pip
-scipy
-npttyping
-streamlit
-pandas
-numpy
+streamlit==1.28.0
 cadquery
-cadquery-ocp
-multimethod
-typish
-pyvista
-streamlit
 ezdxf
