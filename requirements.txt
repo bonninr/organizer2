@@ -10,3 +10,4 @@ multimethod>=1.11,<2.0
 nlopt>=2.9.0,<3.0
 typish
 numpy==1.23.5
+distutils
