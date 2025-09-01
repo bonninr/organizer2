@@ -4,3 +4,4 @@ cadquery-ocp
 nptyping
 ezdxf
 multimethod
+typish
