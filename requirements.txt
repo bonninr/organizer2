@@ -3,6 +3,7 @@ pip
 streamlit
 pandas
 numpy
+multimethod
 cadquery
 cadquery-ocp
 pyvista
