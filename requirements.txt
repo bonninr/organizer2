@@ -3,3 +3,4 @@ streamlit
 cadquery
 cadquery-ocp
 multimethod
+typish
