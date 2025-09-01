@@ -1,6 +1,6 @@
 # Core packages
 streamlit
-cadquery<2.5.2
+cadquery<=2.5.0
 cadquery-ocp
 multimethod
 typish
