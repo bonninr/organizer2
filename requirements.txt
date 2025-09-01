@@ -1,10 +1,4 @@
 # Core packages
 streamlit
-cadquery<=2.5.0
+cadquery
 cadquery-ocp
-multimethod
-typish
-ezdxf
-nptyping
-nlopt
-casadi
