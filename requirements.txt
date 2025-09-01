@@ -2,13 +2,8 @@ pip
 # Core dependencies for Streamlit organ cabinet designer
 streamlit
 pandas
-
-# CadQuery for 3D modeling and geometry generation
-cadquery
-
-# File export dependencies
-ezdxf
-
-# Additional dependencies that may be required by CadQuery
 numpy
-scipy
+cadquery
+pyvista
+streamlit
+ezdxf
