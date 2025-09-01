@@ -250,6 +250,7 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                     <select id="woodTexture">
                         <option value="hardwood2_diffuse">Classic Hardwood</option>
                         <option value="hardwood2_bump">Rich Hardwood</option>
+                        <option value="oak_veneer">Oak Veneer</option>
                         <option value="local" {"selected" if wood_texture_uri else ""}>Local Wood</option>
                         <option value="fallback">Warm Oak (Fallback)</option>
                     </select>
@@ -403,13 +404,14 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
             const woodTextures = {{
                 "hardwood2_diffuse": 'https://threejs.org/examples/textures/hardwood2_diffuse.jpg',
                 "hardwood2_bump": 'https://threejs.org/examples/textures/hardwood2_bump.jpg',
+                "oak_veneer": 'https://www.openpipes.org/beta/organizer_woods/oak_veneer.jpg',
                 "local": "{wood_texture_uri or ''}",
                 "fallback": null // Will use procedural color
             }};
 
             // Global variables for model texture management
             let currentModel = null;
-            let modelMaterials = [];
+            let modelMaterials = []; 
 
             // Create fallback wood material (warm oak color)
             function createWoodMaterial(textureUrl = null) {{
