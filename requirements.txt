@@ -1,5 +1,4 @@
 pip
-# Core dependencies for Streamlit organ cabinet designer
 scipy
 npttyping
 streamlit
