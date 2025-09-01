@@ -1,6 +1,1 @@
 libgl1-mesa-glx
-cmake
-libnlopt-dev
-libnlopt0
-libnlopt-cxx0
-python3-nlopt
