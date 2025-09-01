@@ -6,3 +6,4 @@ multimethod
 typish
 ezdxf
 nptyping
+nlopt
