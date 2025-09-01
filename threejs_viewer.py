@@ -404,7 +404,7 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
             const woodTextures = {{
                 "hardwood2_diffuse": 'https://threejs.org/examples/textures/hardwood2_diffuse.jpg',
                 "hardwood2_bump": 'https://threejs.org/examples/textures/hardwood2_bump.jpg',
-                "oak_veneer": 'https://www.openpipes.org/beta/organizer_woods/oak_veneer.jpg',
+                "oak_veneer": 'https://github.com/bonninr/organizer2/raw/refs/heads/master/textures/oak_veneer.jpg',
                 "local": "{wood_texture_uri or ''}",
                 "fallback": null // Will use procedural color
             }};
