@@ -164,6 +164,9 @@ def generate_console(parameters):
     """
     p = DotDict(parameters)
 
+    # Set default for show_dimensions if not present
+    show_dims = getattr(p, 'show_dimensions_g', False)
+
     parts = []
 
     # Base right table
@@ -172,7 +175,8 @@ def generate_console(parameters):
         max_height=p.base_height_g,
         board_thickness=p.general_board_thickness_g,
         position=(-p.general_board_thickness_g, 0, 0),
-        rotation=(0, 0, 0)
+        rotation=(0, 0, 0),
+        show_dimensions=show_dims
     ))
 
     # Base left table
@@ -181,7 +185,8 @@ def generate_console(parameters):
         max_height=p.base_height_g,
         board_thickness=p.general_board_thickness_g,
         position=(-p.organ_internal_width_g - 2*p.general_board_thickness_g, 0, 0),
-        rotation=(0, 0, 0)
+        rotation=(0, 0, 0),
+        show_dimensions=show_dims
     ))
 
     # Base back
@@ -190,7 +195,8 @@ def generate_console(parameters):
         max_height=p.base_height_g,
         board_thickness=p.general_board_thickness_g,
         position=(-p.general_board_thickness_g, 0, 0),
-        rotation=(0, 0, 90)
+        rotation=(0, 0, 90),
+        show_dimensions=show_dims
     ))
 
     # Base front
@@ -200,7 +206,8 @@ def generate_console(parameters):
         board_thickness=p.general_board_thickness_g,
         position=(-p.general_board_thickness_g, p.base_depth_g-100, 0),
         rotation=(0, 0, 90),
-        rectangular_holes=[[p.organ_internal_width_g/2, p.volume_pedals_hole_start_height_g + (p.volume_pedals_height_g + 2 * p.volume_pedals_spacing_g) / 2, p.volume_pedals_number_g * (p.volume_pedals_width_g + p.volume_pedals_spacing_g) + p.volume_pedals_spacing_g, p.volume_pedals_height_g + 2 * p.volume_pedals_spacing_g]]
+        rectangular_holes=[[p.organ_internal_width_g/2, p.volume_pedals_hole_start_height_g + (p.volume_pedals_height_g + 2 * p.volume_pedals_spacing_g) / 2, p.volume_pedals_number_g * (p.volume_pedals_width_g + p.volume_pedals_spacing_g) + p.volume_pedals_spacing_g, p.volume_pedals_height_g + 2 * p.volume_pedals_spacing_g]],
+        show_dimensions=show_dims
     ))
 
     # Base horizontal
@@ -209,7 +216,8 @@ def generate_console(parameters):
         max_height=p.top_depth_g,
         board_thickness=p.general_board_thickness_g,
         position=(-p.general_board_thickness_g, p.general_board_thickness_g, p.base_height_g),
-        rotation=(0, 90, 90)
+        rotation=(0, 90, 90),
+        show_dimensions=show_dims
     ))
 
     # Top lateral left
@@ -220,7 +228,8 @@ def generate_console(parameters):
         min_height=p.top_notch_start_y_g,
         board_thickness=p.general_board_thickness_g,
         position=(-p.general_board_thickness_g, 0, p.base_height_g),
-        rotation=(0, 0, 0)
+        rotation=(0, 0, 0),
+        show_dimensions=show_dims
     ))
 
     # Top lateral right
@@ -231,7 +240,8 @@ def generate_console(parameters):
         min_height=p.top_notch_start_y_g,
         board_thickness=p.general_board_thickness_g,
         position=(-p.organ_internal_width_g - 2*p.general_board_thickness_g, 0, p.base_height_g),
-        rotation=(0, 0, 0)
+        rotation=(0, 0, 0),
+        show_dimensions=show_dims
     ))
 
     # Top back
@@ -240,7 +250,8 @@ def generate_console(parameters):
         max_height=p.top_height_g - 2 * p.general_board_thickness_g,
         board_thickness=p.general_board_thickness_g,
         position=(-p.general_board_thickness_g, 0, p.base_height_g + p.general_board_thickness_g),
-        rotation=(0, 0, 90)
+        rotation=(0, 0, 90),
+        show_dimensions=show_dims
     ))
 
     # Top front
@@ -249,7 +260,8 @@ def generate_console(parameters):
         max_height=p.top_height_g - 2 * p.general_board_thickness_g,
         board_thickness=p.general_board_thickness_g,
         position=(-p.general_board_thickness_g, p.base_depth_g, p.base_height_g + p.general_board_thickness_g),
-        rotation=(0, 0, 90)
+        rotation=(0, 0, 90),
+        show_dimensions=show_dims
     ))
 
     # Top lid
@@ -258,7 +270,8 @@ def generate_console(parameters):
         max_height=p.base_depth_g,
         board_thickness=p.general_board_thickness_g,
         position=(-p.general_board_thickness_g, 0, p.base_height_g + p.top_height_g - p.general_board_thickness_g),
-        rotation=(0, 90, 90)
+        rotation=(0, 90, 90),
+        show_dimensions=show_dims
     ))
 
     # Volume pedals
@@ -268,7 +281,8 @@ def generate_console(parameters):
             max_height=p.volume_pedals_height_g,
             board_thickness=p.general_board_thickness_g,
             position=(-p.general_board_thickness_g - p.organ_internal_width_g / 2 + (p.volume_pedals_number_g * (p.volume_pedals_width_g + p.volume_pedals_spacing_g) + p.volume_pedals_spacing_g) / 2 - i * (p.volume_pedals_spacing_g + p.volume_pedals_width_g) - p.volume_pedals_spacing_g, p.base_depth_g - p.base_front_distance_g + p.general_board_thickness_g, p.volume_pedals_hole_start_height_g + 2 * p.volume_pedals_spacing_g),
-            rotation=(0, -30, 90)
+            rotation=(0, -30, 90),
+            show_dimensions=show_dims
         ))
 
     # Combine all parts into a compound

@@ -48,7 +48,7 @@ class DotDict:
 
 
 def create_board(max_width, max_height, board_thickness, position, rotation,
-                min_width=0, min_height=0, rectangular_holes=[], circular_holes=[]):
+                min_width=0, min_height=0, rectangular_holes=[], circular_holes=[], show_dimensions=False):
     """
     Create a board with optional slanted edges and holes using build123d.
 
@@ -66,6 +66,7 @@ def create_board(max_width, max_height, board_thickness, position, rotation,
         min_height: Minimum height for slanted edge (0 for rectangular)
         rectangular_holes: List of [x, y, width, height] for rectangular holes
         circular_holes: List of [x, y, diameter] for circular holes
+        show_dimensions: If True, extrude dimension text on the board surface
 
     Returns:
         Part object representing the board
@@ -136,6 +137,20 @@ def create_board(max_width, max_height, board_thickness, position, rotation,
                 with Locations((x + x_offset, y + y_offset)):
                     Circle(diameter / 2)
             extrude(amount=-board_thickness, mode=Mode.SUBTRACT)
+
+        # Add dimension text if requested
+        if show_dimensions:
+            # Create dimension text on the top face (most positive X face)
+            text_height = min(max_height / 8, 50)  # Adaptive text size, max 50mm
+            dim_text = f"{int(max_width)}x{int(max_height)}x{int(board_thickness)}"
+
+            try:
+                with BuildSketch(board_builder.faces().sort_by(Axis.X)[-1]) as text_sketch:
+                    with Locations((0, 0)):
+                        Text(dim_text, font_size=text_height, align=(Align.CENTER, Align.CENTER))
+                extrude(amount=20, mode=Mode.ADD)  # Extrude text 20mm outward for high visibility
+            except:
+                pass  # If text creation fails, continue without it
 
     board = board_builder.part
 

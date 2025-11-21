@@ -560,6 +560,15 @@ def main():
                     help="Height of lateral side panels"
                 )
 
+        # DISPLAY OPTIONS (exclude pedalboard)
+        if console_type != "pedalboard":
+            with st.expander("Display Options", expanded=False):
+                show_dimensions = st.checkbox(
+                    'Show Dimensions on Boards',
+                    value=False,
+                    help="Extrude dimension text (WxHxT) on all board surfaces"
+                )
+
         # EXPORT SETTINGS
         st.divider()
         with st.expander("Export Settings", expanded=False):
@@ -606,6 +615,9 @@ def main():
                 {"volume_pedals_number_g": volume_pedals_number},
                 {"volume_pedals_spacing_g": volume_pedals_spacing},
                 {"volume_pedals_hole_start_height_g": volume_pedals_hole_start_height}
+            ],
+            "Display": [
+                {"show_dimensions_g": show_dimensions}
             ]
         }
     elif console_type == "normal":
@@ -629,6 +641,9 @@ def main():
                 {"top_height_g": top_height},
                 {"top_notch_start_x_g": top_notch_start_x},
                 {"top_notch_start_y_g": top_notch_start_y}
+            ],
+            "Display": [
+                {"show_dimensions_g": show_dimensions}
             ]
         }
     elif console_type == "bench":
@@ -647,6 +662,9 @@ def main():
                 {"bench_height_g": bench_height},
                 {"bench_length_g": bench_length},
                 {"bench_shelf_height_g": bench_shelf_height}
+            ],
+            "Display": [
+                {"show_dimensions_g": show_dimensions}
             ]
         }
     else:  # pedalboard

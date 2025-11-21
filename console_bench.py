@@ -131,6 +131,9 @@ def generate_console(parameters):
     """
     p = DotDict(parameters)
 
+    # Set default for show_dimensions if not present
+    show_dims = getattr(p, 'show_dimensions_g', False)
+
     parts = []
 
     # Bench top
@@ -139,7 +142,8 @@ def generate_console(parameters):
         max_height = p.bench_length_g,
         board_thickness = p.general_board_thickness_g,
         position = (-p.bench_length_g / 2, 0, p.bench_height_g),
-        rotation = (0, 90, 0)
+        rotation = (0, 90, 0),
+        show_dimensions=show_dims
     ))
 
     # Bench left panel
@@ -148,7 +152,8 @@ def generate_console(parameters):
         max_height = p.bench_height_g - p.general_board_thickness_g - p.general_feet_thickness_g,
         board_thickness = p.general_board_thickness_g,
         position = (-p.bench_length_g / 2 + p.general_board_offset_g, p.general_board_offset_g, p.general_feet_thickness_g),
-        rotation = (0, 0, 0)
+        rotation = (0, 0, 0),
+        show_dimensions=show_dims
     ))
 
     # Bench right panel
@@ -157,7 +162,8 @@ def generate_console(parameters):
         max_height = p.bench_height_g - p.general_board_thickness_g - p.general_feet_thickness_g,
         board_thickness = p.general_board_thickness_g,
         position = (p.bench_length_g / 2 - p.general_board_offset_g - p.general_board_thickness_g, p.general_board_offset_g, p.general_feet_thickness_g),
-        rotation = (0, 0, 0)
+        rotation = (0, 0, 0),
+        show_dimensions=show_dims
     ))
 
     # Bench left foot
@@ -167,6 +173,7 @@ def generate_console(parameters):
         board_thickness = p.general_feet_thickness_g,
         position = (-p.general_feet_thickness_g / 2 - p.bench_length_g / 2 + p.general_board_offset_g + p.general_board_thickness_g / 2, p.general_board_offset_g, 0),
         rotation = (0, 0, 0),
+        show_dimensions=show_dims
     ))
 
     # Bench right foot
@@ -175,7 +182,8 @@ def generate_console(parameters):
         max_height = p.general_feet_thickness_g,
         board_thickness = p.general_feet_thickness_g,
         position = (-p.general_feet_thickness_g / 2 + p.bench_length_g / 2 - p.general_board_offset_g - p.general_board_thickness_g / 2, p.general_board_offset_g, 0),
-        rotation = (0, 0, 0)
+        rotation = (0, 0, 0),
+        show_dimensions=show_dims
     ))
 
     # Bench shelf back panel
@@ -184,7 +192,8 @@ def generate_console(parameters):
         max_height = p.bench_length_g - 2 * p.general_board_thickness_g - 2 * p.general_board_offset_g,
         board_thickness = p.general_board_thickness_g,
         position = (-p.bench_length_g / 2 + p.general_board_offset_g + p.general_board_thickness_g, 2 * p.general_board_offset_g, p.bench_height_g - p.bench_shelf_height_g - p.general_board_thickness_g),
-        rotation = (90, 0, 90)
+        rotation = (90, 0, 90),
+        show_dimensions=show_dims
     ))
 
     # Bench shelf
@@ -193,7 +202,8 @@ def generate_console(parameters):
         max_height = p.bench_length_g - 2 * p.general_board_thickness_g - 2 * p.general_board_offset_g,
         board_thickness = p.general_board_thickness_g,
         position = (-p.bench_length_g / 2 + p.general_board_offset_g + p.general_board_thickness_g, p.general_board_offset_g, p.bench_height_g - p.bench_shelf_height_g - p.general_board_thickness_g),
-        rotation = (0, 90, 0)
+        rotation = (0, 90, 0),
+        show_dimensions=show_dims
     ))
 
     # Bench holder
@@ -202,7 +212,8 @@ def generate_console(parameters):
         max_height = p.bench_shelf_height_g,
         board_thickness = p.general_board_thickness_g,
         position = (p.bench_length_g / 2 - p.general_board_offset_g - p.general_board_thickness_g, -p.general_board_thickness_g / 2 + p.bench_depth_g / 2, p.bench_height_g / 2 - p.bench_shelf_height_g / 2),
-        rotation = (0, 0, 90)
+        rotation = (0, 0, 90),
+        show_dimensions=show_dims
     ))
 
     # Combine all parts into a compound

@@ -262,6 +262,9 @@ def generate_console(parameters):
     """
     p = DotDict(parameters)
 
+    # Set default for show_dimensions if not present
+    show_dims = getattr(p, 'show_dimensions_g', False)
+
     parts = []
 
     # Cabinet Top
@@ -270,7 +273,8 @@ def generate_console(parameters):
         max_height = p.organ_internal_width_g,
         board_thickness = p.general_board_thickness_g,
         position = (p.organ_internal_width_g / 2, 0, p.base_height_g + p.keyboard_height_g + p.note_stand_height_g + p.general_board_thickness_g + p.front_speaker_height_g),
-        rotation = (0, -90, 0)
+        rotation = (0, -90, 0),
+        show_dimensions=show_dims
     ))
 
     # Cabinet Upper Back Panel
@@ -279,7 +283,8 @@ def generate_console(parameters):
         max_height = p.keyboard_height_g + p.note_stand_height_g + p.general_board_thickness_g + p.front_speaker_height_g,
         board_thickness = p.general_board_thickness_g,
         position = (p.organ_internal_width_g / 2, 0, p.base_height_g),
-        rotation = (0, 0, 90)
+        rotation = (0, 0, 90),
+        show_dimensions=show_dims
     ))
 
     # Cabinet Lower Back Panel
@@ -288,7 +293,8 @@ def generate_console(parameters):
         max_height = p.base_height_g - p.general_board_thickness_g,
         board_thickness = p.general_board_thickness_g,
         position = (p.organ_internal_width_g / 2, 0, 0),
-        rotation = (0, 0, 90)
+        rotation = (0, 0, 90),
+        show_dimensions=show_dims
     ))
 
     # Cabinet Bottom Shelf
@@ -297,7 +303,8 @@ def generate_console(parameters):
         max_height = p.base_depth_g - p.base_front_distance_g + p.general_board_offset_g,
         board_thickness = p.general_board_thickness_g,
         position = (p.organ_internal_width_g / 2, p.general_board_thickness_g, p.volume_pedals_hole_start_height_g),
-        rotation = (0, 90, 90)
+        rotation = (0, 90, 90),
+        show_dimensions=show_dims
     ))
 
     # Cabinet Bottom Front Panel
@@ -306,7 +313,8 @@ def generate_console(parameters):
         max_height = p.volume_pedals_hole_start_height_g - p.general_board_thickness_g,
         board_thickness = p.general_board_thickness_g,
         position = (p.organ_internal_width_g / 2, p.base_depth_g - p.base_front_distance_g, 0),
-        rotation = (0, 0, 90)
+        rotation = (0, 0, 90),
+        show_dimensions=show_dims
     ))
 
     # Cabinet Base Front
@@ -316,7 +324,8 @@ def generate_console(parameters):
         board_thickness = p.general_board_thickness_g,
         position = (p.organ_internal_width_g / 2, p.base_depth_g - p.base_front_distance_g, p.volume_pedals_hole_start_height_g),
         rotation = (0, 0, 90),
-        rectangular_holes=[[p.organ_internal_width_g/2, p.volume_pedals_hole_start_height_g, p.volume_pedals_number_g * (p.volume_pedals_width_g + p.volume_pedals_spacing_g) + p.volume_pedals_spacing_g, p.volume_pedals_height_g + 2 * p.volume_pedals_spacing_g]]
+        rectangular_holes=[[p.organ_internal_width_g/2, p.volume_pedals_hole_start_height_g, p.volume_pedals_number_g * (p.volume_pedals_width_g + p.volume_pedals_spacing_g) + p.volume_pedals_spacing_g, p.volume_pedals_height_g + 2 * p.volume_pedals_spacing_g]],
+        show_dimensions=show_dims
     ))
 
     # Cabinet Upper Front Panel
@@ -325,7 +334,8 @@ def generate_console(parameters):
         max_height = p.front_speaker_height_g,
         board_thickness = p.general_board_thickness_g,
         position = ((p.organ_internal_width_g - 2 * p.front_speaker_width_g) / 2, p.base_depth_g + p.general_board_thickness_g, p.base_height_g + p.keyboard_height_g + p.note_stand_height_g + p.general_board_thickness_g),
-        rotation = (0, 0, 90)
+        rotation = (0, 0, 90),
+        show_dimensions=show_dims
     ))
 
     # Cabinet Speaker Shelf
@@ -334,7 +344,8 @@ def generate_console(parameters):
         max_height = p.organ_internal_width_g,
         board_thickness = p.general_board_thickness_g,
         position = (p.organ_internal_width_g / 2, p.general_board_thickness_g, p.base_height_g + p.keyboard_height_g + p.note_stand_height_g),
-        rotation = (0, -90, 0)
+        rotation = (0, -90, 0),
+        show_dimensions=show_dims
     ))
 
     # Cabinet Left Knobs Panel
@@ -343,7 +354,8 @@ def generate_console(parameters):
         max_height = p.keyboard_height_g + p.note_stand_height_g,
         board_thickness = p.general_board_thickness_g,
         position = (p.organ_internal_width_g / 2, p.base_depth_g + p.general_board_thickness_g, p.base_height_g),
-        rotation = (0, 0, 90)
+        rotation = (0, 0, 90),
+        show_dimensions=show_dims
     ))
 
     # Cabinet Left Knobs Lateral Panel
@@ -352,7 +364,8 @@ def generate_console(parameters):
         max_height = p.keyboard_height_g + p.note_stand_height_g,
         board_thickness = p.general_board_thickness_g,
         position = (p.keyboard_width_g / 2, p.general_board_thickness_g, p.base_height_g),
-        rotation = (0, 0, 0)
+        rotation = (0, 0, 0),
+        show_dimensions=show_dims
     ))
 
     # Cabinet Right Knobs Panel
@@ -361,7 +374,8 @@ def generate_console(parameters):
         max_height = p.keyboard_height_g + p.note_stand_height_g,
         board_thickness = p.general_board_thickness_g,
         position = (-p.organ_internal_width_g / 2, p.base_depth_g + 2 * p.general_board_thickness_g, p.base_height_g),
-        rotation = (0, 0, -90)
+        rotation = (0, 0, -90),
+        show_dimensions=show_dims
     ))
 
     # Cabinet Right Knobs Lateral Panel
@@ -370,7 +384,8 @@ def generate_console(parameters):
         max_height = p.keyboard_height_g + p.note_stand_height_g,
         board_thickness = p.general_board_thickness_g,
         position = (-p.keyboard_width_g / 2 - p.general_board_thickness_g, p.general_board_thickness_g, p.base_height_g),
-        rotation = (0, 0, 0)
+        rotation = (0, 0, 0),
+        show_dimensions=show_dims
     ))
 
     # Cabinet Note Stand Upper Panel
@@ -379,7 +394,8 @@ def generate_console(parameters):
         max_height = p.note_shelf_height_g,
         board_thickness = p.general_board_thickness_g,
         position = (p.keyboard_width_g / 2, p.base_depth_g + p.general_board_thickness_g, p.base_height_g + p.keyboard_height_g + p.note_stand_height_g - p.note_shelf_height_g),
-        rotation = (0, 0, 90)
+        rotation = (0, 0, 90),
+        show_dimensions=show_dims
     ))
 
     # Cabinet Main Shelf
@@ -389,6 +405,7 @@ def generate_console(parameters):
         board_thickness = p.general_board_thickness_g,
         position = (p.keyboard_width_g / 2, 0, p.base_height_g),
         rotation = (0, 90, 90),
+        show_dimensions=show_dims
     ))
 
     # Cabinet Main Shelf (left part)
@@ -398,6 +415,7 @@ def generate_console(parameters):
         board_thickness = p.general_board_thickness_g,
         position = (p.organ_internal_width_g / 2, 0, p.base_height_g),
         rotation = (0, 90, 90),
+        show_dimensions=show_dims
     ))
 
     # Cabinet Main Shelf (right part)
@@ -407,6 +425,7 @@ def generate_console(parameters):
         board_thickness = p.general_board_thickness_g,
         position = (-p.keyboard_width_g / 2, 0, p.base_height_g),
         rotation = (0, 90, 90),
+        show_dimensions=show_dims
     ))
 
     # Note Stand Front Panel
@@ -415,7 +434,8 @@ def generate_console(parameters):
         max_height = p.note_shelf_height_g,
         board_thickness = p.general_board_thickness_g,
         position = (-p.keyboard_width_g / 2, p.base_depth_g + p.keyboard_offset_g -p.general_board_offset_g - p.general_board_thickness_g - p.keyboard_depth_g, p.base_height_g + p.keyboard_height_g),
-        rotation = (0, 0, -90)
+        rotation = (0, 0, -90),
+        show_dimensions=show_dims
     ))
 
     # Note Stand Shelf
@@ -424,7 +444,8 @@ def generate_console(parameters):
         max_height = p.note_shelf_height_g,
         board_thickness = p.general_board_thickness_g,
         position = (p.keyboard_width_g / 2, p.base_depth_g + p.keyboard_offset_g -p.general_board_offset_g - p.general_board_thickness_g - p.keyboard_depth_g + p.note_shelf_height_g, p.base_height_g + p.keyboard_height_g + p.note_shelf_height_g - p.general_board_thickness_g),
-        rotation = (0, -90, 90)
+        rotation = (0, -90, 90),
+        show_dimensions=show_dims
     ))
 
     # Note Stand
@@ -433,7 +454,8 @@ def generate_console(parameters):
         max_height = (p.note_stand_height_g - p.note_shelf_height_g) / math.cos(math.radians(p.note_stand_angle_g)),
         board_thickness = p.general_board_thickness_g,
         position = (-p.keyboard_width_g / 2, p.base_depth_g + p.keyboard_offset_g -p.general_board_offset_g - p.keyboard_depth_g, p.base_height_g + p.keyboard_height_g + p.note_shelf_height_g),
-        rotation = (0, p.note_stand_angle_g, -90)
+        rotation = (0, p.note_stand_angle_g, -90),
+        show_dimensions=show_dims
     ))
 
     # Cabinet Left Foot
@@ -442,7 +464,8 @@ def generate_console(parameters):
         max_height = p.general_feet_thickness_g,
         board_thickness = p.general_feet_thickness_g,
         position = (p.organ_internal_width_g / 2, 0, 0),
-        rotation = (0, 0, 0)
+        rotation = (0, 0, 0),
+        show_dimensions=show_dims
     ))
 
     # Cabinet Right Foot
@@ -451,7 +474,8 @@ def generate_console(parameters):
         max_height = p.general_feet_thickness_g,
         board_thickness = p.general_feet_thickness_g,
         position = (-p.organ_internal_width_g / 2 - p.general_feet_thickness_g, 0, 0),
-        rotation = (0, 0, 0)
+        rotation = (0, 0, 0),
+        show_dimensions=show_dims
     ))
 
     # Cabinet Left Lateral
@@ -465,7 +489,8 @@ def generate_console(parameters):
         board_thickness = p.general_board_thickness_g,
         position = (p.organ_internal_width_g / 2, 0, p.general_feet_thickness_g),
         rotation = (0, 0, 0),
-        rectangular_holes=left_lateral_holes
+        rectangular_holes=left_lateral_holes,
+        show_dimensions=show_dims
     ))
 
     # Cabinet Right Lateral
@@ -479,7 +504,8 @@ def generate_console(parameters):
         board_thickness = p.general_board_thickness_g,
         position = (-p.organ_internal_width_g / 2 - p.general_board_thickness_g, 0, p.general_feet_thickness_g),
         rotation = (0, 0, 0),
-        rectangular_holes=right_lateral_holes
+        rectangular_holes=right_lateral_holes,
+        show_dimensions=show_dims
     ))
 
     # Volume pedals
@@ -490,6 +516,7 @@ def generate_console(parameters):
             board_thickness = p.general_board_thickness_g,
             position = ((p.volume_pedals_number_g * (p.volume_pedals_width_g + p.volume_pedals_spacing_g) + p.volume_pedals_spacing_g) / 2 - i * (p.volume_pedals_spacing_g + p.volume_pedals_width_g) - p.volume_pedals_spacing_g, p.base_depth_g - p.base_front_distance_g + p.general_board_thickness_g, p.volume_pedals_hole_start_height_g + 2 * p.volume_pedals_spacing_g),
             rotation = (0, -30, 90),
+            show_dimensions=show_dims
         ))
 
     # Combine all parts into a compound
