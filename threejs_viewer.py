@@ -287,8 +287,8 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
             renderer.setSize(container.clientWidth, container.clientHeight);
             container.appendChild(renderer.domElement);
 
-            // Camera position
-            camera.position.set(5, 5, 5);
+            // Camera position - positioned to show front-left of instrument (rotated 90° clockwise)
+            camera.position.set(-5, 5, -5);
 
             // Camera controls
             const controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -805,7 +805,7 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                             break;
                         case 'KeyR':
                             // Reset camera position
-                            camera.position.set(5, 5, 5);
+                            camera.position.set(-5, 5, -5);
                             camera.lookAt(0, 1, 0);
                             controls.target.set(0, 1, 0);
                             controls.update();
