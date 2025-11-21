@@ -1,4 +1,3 @@
 # Core packages
 streamlit
-cadquery
-cadquery-ocp
+build123d
