@@ -27,6 +27,7 @@ import pandas as pd
 import console_normal
 import console_vertical
 import console_bench
+import console_pedalboard
 
 # Import exporters and viewer
 from file_exporters import generate_temp_file, generate_temp_csv, generate_temp_dxf, Tessellation
@@ -58,8 +59,10 @@ def generate_and_export_console_cached(
         console_module = console_normal
     elif console_type == "vertical":
         console_module = console_vertical
-    else:  # bench
+    elif console_type == "bench":
         console_module = console_bench
+    else:  # pedalboard
+        console_module = console_pedalboard
 
     # Generate the organ console model
     console_model = console_module.generate_console(parameters_dict)
@@ -91,8 +94,8 @@ def main():
 
         console_type = st.radio(
             "Console Type",
-            options=["normal", "vertical", "bench"],
-            format_func=lambda x: {"normal": "Normal Console", "vertical": "Vertical Console", "bench": "Bench Console"}[x],
+            options=["normal", "vertical", "bench", "pedalboard"],
+            format_func=lambda x: {"normal": "Normal Console", "vertical": "Vertical Console", "bench": "Bench Console", "pedalboard": "Pedalboard"}[x],
             help="Select the type of organ console to design"
         )
 
@@ -106,50 +109,72 @@ def main():
             default_params = console_normal.get_default_parameters()
         elif console_type == "vertical":
             default_params = console_vertical.get_default_parameters()
-        else:  # bench
+        elif console_type == "bench":
             default_params = console_bench.get_default_parameters()
+        else:  # pedalboard
+            default_params = console_pedalboard.get_default_parameters()
 
-        # GENERAL AND BASE SECTION
-        with st.expander("General & Base", expanded=True):
-            organ_internal_width = st.slider(
-                'Internal Width (mm)',
-                min_value=800, max_value=2000,
-                value=default_params["General_and_base"][0]["organ_internal_width_g"],
-                step=50,
-                help="Internal width of the console"
-            )
+        # GENERAL SECTION (Pedalboard only)
+        if console_type == "pedalboard":
+            with st.expander("General", expanded=True):
+                general_board_thickness = st.slider(
+                    'Board Thickness (mm)',
+                    min_value=12, max_value=25,
+                    value=default_params["General"][0]["general_board_thickness_g"],
+                    step=1,
+                    help="Thickness of all wooden boards"
+                )
 
-            general_board_thickness = st.slider(
-                'Board Thickness (mm)',
-                min_value=12, max_value=25,
-                value=default_params["General_and_base"][1]["general_board_thickness_g"],
-                step=1,
-                help="Thickness of all wooden boards"
-            )
+                general_board_offset = st.slider(
+                    'Board Offset (mm)',
+                    min_value=3, max_value=10,
+                    value=default_params["General"][1]["general_board_offset_g"],
+                    step=1,
+                    help="Offset for board spacing"
+                )
 
-            base_height = st.slider(
-                'Base Height (mm)',
-                min_value=500, max_value=1200,
-                value=default_params["General_and_base"][2]["base_height_g"],
-                step=50,
-                help="Height of the base section"
-            )
+        # GENERAL AND BASE SECTION (Console types only)
+        if console_type != "pedalboard":
+            with st.expander("General & Base", expanded=True):
+                organ_internal_width = st.slider(
+                    'Internal Width (mm)',
+                    min_value=800, max_value=2000,
+                    value=default_params["General_and_base"][0]["organ_internal_width_g"],
+                    step=50,
+                    help="Internal width of the console"
+                )
 
-            base_depth = st.slider(
-                'Base Depth (mm)',
-                min_value=250, max_value=500,
-                value=default_params["General_and_base"][3]["base_depth_g"],
-                step=25,
-                help="Depth of the base section"
-            )
+                general_board_thickness = st.slider(
+                    'Board Thickness (mm)',
+                    min_value=12, max_value=25,
+                    value=default_params["General_and_base"][1]["general_board_thickness_g"],
+                    step=1,
+                    help="Thickness of all wooden boards"
+                )
 
-            base_front_distance = st.slider(
-                'Base Front Distance (mm)',
-                min_value=0, max_value=200,
-                value=default_params["General_and_base"][4]["base_front_distance_g"],
-                step=10,
-                help="Front edge distance"
-            )
+                base_height = st.slider(
+                    'Base Height (mm)',
+                    min_value=500, max_value=1200,
+                    value=default_params["General_and_base"][2]["base_height_g"],
+                    step=50,
+                    help="Height of the base section"
+                )
+
+                base_depth = st.slider(
+                    'Base Depth (mm)',
+                    min_value=250, max_value=500,
+                    value=default_params["General_and_base"][3]["base_depth_g"],
+                    step=25,
+                    help="Depth of the base section"
+                )
+
+                base_front_distance = st.slider(
+                    'Base Front Distance (mm)',
+                    min_value=0, max_value=200,
+                    value=default_params["General_and_base"][4]["base_front_distance_g"],
+                    step=10,
+                    help="Front edge distance"
+                )
 
             # Additional vertical-specific parameters
             if console_type == "vertical":
@@ -443,6 +468,98 @@ def main():
                     help="Height of the internal shelf"
                 )
 
+        # PEDALBOARD SECTION (Pedalboard only)
+        if console_type == "pedalboard":
+            with st.expander("Pedals", expanded=True):
+                number_of_notes = st.slider(
+                    'Number of Notes',
+                    min_value=12, max_value=36,
+                    value=int(default_params["Pedals"][0]["number_of_notes_g"]),
+                    step=1,
+                    help="Total number of notes (AGO standard pattern will be auto-generated)"
+                )
+
+                short_pedal_width = st.slider(
+                    'Short Pedal Width (mm)',
+                    min_value=20.0, max_value=40.0,
+                    value=float(default_params["Pedals"][1]["short_pedal_width_g"]),
+                    step=0.5,
+                    help="Width of short (natural) pedals - 1 inch cross-section"
+                )
+
+                tall_pedal_width = st.slider(
+                    'Tall Pedal Width (mm)',
+                    min_value=20.0, max_value=40.0,
+                    value=float(default_params["Pedals"][2]["tall_pedal_width_g"]),
+                    step=0.5,
+                    help="Width of tall (sharp/flat) pedals - 1 inch cross-section"
+                )
+
+                short_pedal_length = st.slider(
+                    'Short Pedal Length (mm)',
+                    min_value=600, max_value=800,
+                    value=int(default_params["Pedals"][3]["short_pedal_length_g"]),
+                    step=10,
+                    help="Length of short pedals (extending forward)"
+                )
+
+                tall_pedal_length = st.slider(
+                    'Tall Pedal Length (mm)',
+                    min_value=600, max_value=800,
+                    value=int(default_params["Pedals"][4]["tall_pedal_length_g"]),
+                    step=10,
+                    help="Length of tall pedals (extending forward)"
+                )
+
+                pedal_height = st.slider(
+                    'Pedal Height (mm)',
+                    min_value=100, max_value=250,
+                    value=int(default_params["Pedals"][5]["pedal_height_g"]),
+                    step=10,
+                    help="Height of pedals above base"
+                )
+
+                pedal_thickness = st.slider(
+                    'Pedal Thickness (mm)',
+                    min_value=20.0, max_value=40.0,
+                    value=float(default_params["Pedals"][6]["pedal_thickness_g"]),
+                    step=0.5,
+                    help="Thickness of each pedal cross-section (1 inch for short, 2 inch for tall)"
+                )
+
+                pedal_spacing = st.slider(
+                    'Pedal Spacing (mm)',
+                    min_value=1, max_value=10,
+                    value=int(default_params["Pedals"][7]["pedal_spacing_g"]),
+                    step=1,
+                    help="Gap between pedals"
+                )
+
+            with st.expander("Base & Frame", expanded=False):
+                base_height = st.slider(
+                    'Base Height (mm)',
+                    min_value=50, max_value=200,
+                    value=int(default_params["Base"][0]["base_height_g"]),
+                    step=10,
+                    help="Height of the base frame"
+                )
+
+                base_depth = st.slider(
+                    'Base Depth (mm)',
+                    min_value=100, max_value=300,
+                    value=int(default_params["Base"][1]["base_depth_g"]),
+                    step=10,
+                    help="Depth of the base frame from front"
+                )
+
+                lateral_board_height = st.slider(
+                    'Lateral Board Height (mm)',
+                    min_value=150, max_value=400,
+                    value=int(default_params["Base"][2]["lateral_board_height_g"]),
+                    step=10,
+                    help="Height of lateral side panels"
+                )
+
         # EXPORT SETTINGS
         st.divider()
         with st.expander("Export Settings", expanded=False):
@@ -514,7 +631,7 @@ def main():
                 {"top_notch_start_y_g": top_notch_start_y}
             ]
         }
-    else:  # bench
+    elif console_type == "bench":
         parameters = {
             "General_and_base": [
                 {"organ_internal_width_g": organ_internal_width},
@@ -532,9 +649,31 @@ def main():
                 {"bench_shelf_height_g": bench_shelf_height}
             ]
         }
+    else:  # pedalboard
+        parameters = {
+            "General": [
+                {"general_board_thickness_g": general_board_thickness},
+                {"general_board_offset_g": general_board_offset}
+            ],
+            "Pedals": [
+                {"number_of_notes_g": number_of_notes},
+                {"short_pedal_width_g": short_pedal_width},
+                {"tall_pedal_width_g": tall_pedal_width},
+                {"short_pedal_length_g": short_pedal_length},
+                {"tall_pedal_length_g": tall_pedal_length},
+                {"pedal_height_g": pedal_height},
+                {"pedal_thickness_g": pedal_thickness},
+                {"pedal_spacing_g": pedal_spacing}
+            ],
+            "Base": [
+                {"base_height_g": base_height},
+                {"base_depth_g": base_depth},
+                {"lateral_board_height_g": lateral_board_height}
+            ]
+        }
 
     # 3D VISUALIZATION
-    console_names = {"normal": "Normal", "vertical": "Vertical", "bench": "Bench"}
+    console_names = {"normal": "Normal", "vertical": "Vertical", "bench": "Bench", "pedalboard": "Pedalboard"}
     st.header(f"{console_names[console_type]} Console Preview")
 
     # Initialize variables
