@@ -60,8 +60,55 @@ def get_default_parameters():
             {"volume_pedals_number_g": 3},
             {"volume_pedals_spacing_g": 10},
             {"volume_pedals_hole_start_height_g": 140}
+        ],
+        "Knobs": [
+            {"enable_knob_holes_g": False},     # Enable knob holes on register panels
+            {"knob_columns_g": 8},              # Number of vertical columns
+            {"knob_rows_g": 10},                # Number of holes per column
+            {"knob_diameter_g": 25},            # Diameter of each knob hole (mm)
+            {"knob_vertical_spacing_g": 50},    # Vertical spacing between holes (mm)
+            {"knob_horizontal_spacing_g": 60},  # Horizontal spacing between columns (mm)
+            {"knob_stagger_offset_g": 25},      # Vertical offset for stagger pattern (mm)
+            {"knob_margin_top_g": 50},          # Top margin from panel edge (mm)
+            {"knob_margin_side_g": 30}          # Side margin from panel edge (mm)
         ]
     }
+
+
+def generate_knob_holes(panel_width, panel_height, parameters):
+    """
+    Generate staggered knob hole positions for register panels.
+
+    Args:
+        panel_width: Width of the panel (mm)
+        panel_height: Height of the panel (mm)
+        parameters: Parameter dictionary
+
+    Returns:
+        List of [x, y, diameter] for circular holes
+    """
+    p = DotDict(parameters)
+
+    holes = []
+
+    # Calculate starting position (centered horizontally, with top margin)
+    total_width = (p.knob_columns_g - 1) * p.knob_horizontal_spacing_g
+    start_x = (panel_width - total_width) / 2
+    start_y = p.knob_margin_top_g
+
+    for col in range(p.knob_columns_g):
+        # Alternate the stagger: even columns start at base, odd columns offset
+        y_offset = (col % 2) * p.knob_stagger_offset_g
+
+        for row in range(p.knob_rows_g):
+            x = start_x + col * p.knob_horizontal_spacing_g
+            y = start_y + y_offset + row * p.knob_vertical_spacing_g
+
+            # Check if hole is within panel bounds
+            if y + p.knob_diameter_g / 2 <= panel_height:
+                holes.append([x, y, p.knob_diameter_g])
+
+    return holes
 
 
 def generate_board_list(parameters):
@@ -349,12 +396,17 @@ def generate_console(parameters):
     ))
 
     # Cabinet Left Knobs Panel
+    left_panel_width = (p.organ_internal_width_g - p.keyboard_width_g - 2 * p.general_board_thickness_g) / 2
+    left_panel_height = p.keyboard_height_g + p.note_stand_height_g
+    left_knob_holes = generate_knob_holes(left_panel_width, left_panel_height, parameters) if p.enable_knob_holes_g else []
+
     parts.append(create_board(
-        max_width = (p.organ_internal_width_g - p.keyboard_width_g - 2 * p.general_board_thickness_g) / 2,
-        max_height = p.keyboard_height_g + p.note_stand_height_g,
+        max_width = left_panel_width,
+        max_height = left_panel_height,
         board_thickness = p.general_board_thickness_g,
         position = (p.organ_internal_width_g / 2, p.base_depth_g + p.general_board_thickness_g, p.base_height_g),
         rotation = (0, 0, 90),
+        circular_holes = left_knob_holes,
         show_dimensions=show_dims
     ))
 
@@ -369,12 +421,17 @@ def generate_console(parameters):
     ))
 
     # Cabinet Right Knobs Panel
+    right_panel_width = (p.organ_internal_width_g - p.keyboard_width_g - 2 * p.general_board_thickness_g) / 2
+    right_panel_height = p.keyboard_height_g + p.note_stand_height_g
+    right_knob_holes = generate_knob_holes(right_panel_width, right_panel_height, parameters) if p.enable_knob_holes_g else []
+
     parts.append(create_board(
-        max_width = (p.organ_internal_width_g - p.keyboard_width_g - 2 * p.general_board_thickness_g) / 2,
-        max_height = p.keyboard_height_g + p.note_stand_height_g,
+        max_width = right_panel_width,
+        max_height = right_panel_height,
         board_thickness = p.general_board_thickness_g,
         position = (-p.organ_internal_width_g / 2, p.base_depth_g + 2 * p.general_board_thickness_g, p.base_height_g),
         rotation = (0, 0, -90),
+        circular_holes = right_knob_holes,
         show_dimensions=show_dims
     ))
 

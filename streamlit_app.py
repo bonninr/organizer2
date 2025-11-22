@@ -355,6 +355,77 @@ def main():
                     help="Starting height for pedal holes"
                 )
 
+            with st.expander("Register Knobs", expanded=False):
+                enable_knob_holes = st.checkbox(
+                    'Enable Knob Holes',
+                    value=default_params["Knobs"][0]["enable_knob_holes_g"],
+                    help="Add staggered knob holes to register panels"
+                )
+
+                knob_columns = st.slider(
+                    'Number of Columns',
+                    min_value=4, max_value=12,
+                    value=default_params["Knobs"][1]["knob_columns_g"],
+                    step=1,
+                    help="Number of vertical columns of knobs"
+                )
+
+                knob_rows = st.slider(
+                    'Rows per Column',
+                    min_value=5, max_value=15,
+                    value=default_params["Knobs"][2]["knob_rows_g"],
+                    step=1,
+                    help="Number of knob holes per column"
+                )
+
+                knob_diameter = st.slider(
+                    'Knob Hole Diameter (mm)',
+                    min_value=15, max_value=40,
+                    value=default_params["Knobs"][3]["knob_diameter_g"],
+                    step=1,
+                    help="Diameter of each knob hole"
+                )
+
+                knob_vertical_spacing = st.slider(
+                    'Vertical Spacing (mm)',
+                    min_value=30, max_value=80,
+                    value=default_params["Knobs"][4]["knob_vertical_spacing_g"],
+                    step=5,
+                    help="Vertical spacing between holes in same column"
+                )
+
+                knob_horizontal_spacing = st.slider(
+                    'Horizontal Spacing (mm)',
+                    min_value=40, max_value=100,
+                    value=default_params["Knobs"][5]["knob_horizontal_spacing_g"],
+                    step=5,
+                    help="Horizontal spacing between columns"
+                )
+
+                knob_stagger_offset = st.slider(
+                    'Stagger Offset (mm)',
+                    min_value=0, max_value=50,
+                    value=default_params["Knobs"][6]["knob_stagger_offset_g"],
+                    step=5,
+                    help="Vertical offset for alternating columns (stagger pattern)"
+                )
+
+                knob_margin_top = st.slider(
+                    'Top Margin (mm)',
+                    min_value=20, max_value=100,
+                    value=default_params["Knobs"][7]["knob_margin_top_g"],
+                    step=5,
+                    help="Top margin from panel edge"
+                )
+
+                knob_margin_side = st.slider(
+                    'Side Margin (mm)',
+                    min_value=10, max_value=80,
+                    value=default_params["Knobs"][8]["knob_margin_side_g"],
+                    step=5,
+                    help="Side margin from panel edge"
+                )
+
         # VOLUME PEDALS SECTION (Normal only)
         if console_type == "normal":
             with st.expander("Volume Pedals", expanded=False):
@@ -615,6 +686,17 @@ def main():
                 {"volume_pedals_number_g": volume_pedals_number},
                 {"volume_pedals_spacing_g": volume_pedals_spacing},
                 {"volume_pedals_hole_start_height_g": volume_pedals_hole_start_height}
+            ],
+            "Knobs": [
+                {"enable_knob_holes_g": enable_knob_holes},
+                {"knob_columns_g": knob_columns},
+                {"knob_rows_g": knob_rows},
+                {"knob_diameter_g": knob_diameter},
+                {"knob_vertical_spacing_g": knob_vertical_spacing},
+                {"knob_horizontal_spacing_g": knob_horizontal_spacing},
+                {"knob_stagger_offset_g": knob_stagger_offset},
+                {"knob_margin_top_g": knob_margin_top},
+                {"knob_margin_side_g": knob_margin_side}
             ],
             "Display": [
                 {"show_dimensions_g": show_dimensions}
