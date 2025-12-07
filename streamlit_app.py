@@ -32,6 +32,7 @@ import console_pedalboard
 # Import exporters and viewer
 from file_exporters import generate_temp_file, generate_temp_csv, generate_temp_dxf, Tessellation
 from threejs_viewer import create_threejs_gltf_viewer, find_wood_texture
+from technical_drawing import create_a3_technical_drawing, generate_technical_drawing_cached
 
 
 @st.cache_data
@@ -772,7 +773,7 @@ def main():
             ]
         }
 
-    # 3D VISUALIZATION
+    # VISUALIZATION SECTION
     console_names = {"normal": "Normal", "vertical": "Vertical", "bench": "Bench", "pedalboard": "Pedalboard"}
     st.header(f"{console_names[console_type]} Console Preview")
 
@@ -799,28 +800,117 @@ def main():
             tessellation=quality_value
         )
 
-        # Find wood texture for Three.js viewer
-        wood_texture_path = find_wood_texture()
-
-        # Create and display Three.js viewer
-        viewer_html = create_threejs_gltf_viewer(
-            gltf_file_path=file_path_gltf,
-            wood_texture_path=wood_texture_path,
-            height=600
-        )
-
-        # Display the Three.js viewer
-        components.html(viewer_html, height=620, scrolling=False)
-
-        # Show texture status
-        if wood_texture_path:
-            st.success(f"Using wood texture: {os.path.basename(wood_texture_path)}")
+        # Generate the 3D model for technical drawing
+        if console_type == "normal":
+            console_module = console_normal
+        elif console_type == "vertical":
+            console_module = console_vertical
+        elif console_type == "bench":
+            console_module = console_bench
         else:
-            st.info("No wood texture found - using procedural material")
+            console_module = console_pedalboard
+
+        console_model = console_module.generate_console(parameters)
 
     except Exception as e:
-        st.error(f"Failed to create 3D viewer: {str(e)}")
-        st.info("Please check that all required dependencies are installed.")
+        st.error(f"Failed to generate model: {str(e)}")
+        console_model = None
+
+    # Create tabs for 3D View and Technical Drawing
+    tab_3d, tab_drawing = st.tabs(["3D View", "Technical Drawing"])
+
+    # 3D VIEW TAB
+    with tab_3d:
+        try:
+            # Find wood texture for Three.js viewer
+            wood_texture_path = find_wood_texture()
+
+            # Create and display Three.js viewer
+            viewer_html = create_threejs_gltf_viewer(
+                gltf_file_path=file_path_gltf,
+                wood_texture_path=wood_texture_path,
+                height=600
+            )
+
+            # Display the Three.js viewer
+            components.html(viewer_html, height=620, scrolling=False)
+
+            # Show texture status
+            if wood_texture_path:
+                st.success(f"Using wood texture: {os.path.basename(wood_texture_path)}")
+            else:
+                st.info("No wood texture found - using procedural material")
+
+        except Exception as e:
+            st.error(f"Failed to create 3D viewer: {str(e)}")
+            st.info("Please check that all required dependencies are installed.")
+
+    # TECHNICAL DRAWING TAB
+    with tab_drawing:
+        st.subheader("A3 Technical Drawing")
+        st.caption("Orthographic views with front, back, top, bottom, left, right, perspective, and exploded views")
+
+        if console_model is not None:
+            try:
+                # Generate the technical drawing SVG
+                svg_content = create_a3_technical_drawing(
+                    model=console_model,
+                    parameters=parameters,
+                    console_type=console_type,
+                    title="Organ Console"
+                )
+
+                # Display SVG using components.html for better compatibility
+                # Wrap SVG in HTML with proper styling
+                html_content = f'''
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <style>
+                        body {{
+                            margin: 0;
+                            padding: 10px;
+                            background-color: #f0f0f0;
+                            display: flex;
+                            justify-content: center;
+                        }}
+                        .svg-container {{
+                            background-color: white;
+                            border: 1px solid #ddd;
+                            border-radius: 5px;
+                            padding: 10px;
+                            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                            overflow: auto;
+                        }}
+                        svg {{
+                            max-width: 100%;
+                            height: auto;
+                        }}
+                    </style>
+                </head>
+                <body>
+                    <div class="svg-container">
+                        {svg_content}
+                    </div>
+                </body>
+                </html>
+                '''
+                components.html(html_content, height=500, scrolling=True)
+
+                # Download button for SVG
+                st.download_button(
+                    label="Download Technical Drawing (SVG)",
+                    data=svg_content,
+                    file_name=f"organ_console_{console_type}_technical_drawing.svg",
+                    mime="image/svg+xml",
+                    help="Download the A3 technical drawing as SVG"
+                )
+
+            except Exception as e:
+                st.error(f"Failed to generate technical drawing: {str(e)}")
+                st.info("Technical drawing generation requires all model parts to be valid.")
+        else:
+            st.warning("Model not available for technical drawing generation.")
 
     # DOWNLOAD SECTION
     st.subheader("Download Files")
