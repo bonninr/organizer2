@@ -35,12 +35,16 @@ from threejs_viewer import create_threejs_gltf_viewer, find_wood_texture
 from technical_drawing import create_a3_technical_drawing, generate_technical_drawing_cached
 
 
+# Cache version - increment to invalidate cache when export logic changes
+_CACHE_VERSION = 6  # v6: Enclosure 5mm from floor, pedals 50mm (~2in) for pivot clearance
+
 @st.cache_data
 def generate_and_export_console_cached(
     console_type,
     parameters_dict,
     file_format,
-    tessellation
+    tessellation,
+    _cache_version=_CACHE_VERSION  # Forces cache invalidation when version changes
 ):
     """
     Cached function to generate and export the organ console model.

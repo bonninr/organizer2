@@ -247,7 +247,9 @@ def generate_console(parameters):
     total_sharps = pattern.count('t')
 
     # Base Z for pedals
-    pedal_base_z = p.base_height_g + p.pedal_height_g
+    # Enclosure sits ~5mm above floor, pedals are ~50mm (2 inches) above floor for pivot clearance
+    enclosure_base_z = 5  # 5mm gap from floor for enclosure
+    pedal_base_z = 50     # ~2 inches clearance for pedal movement
 
     # Generate pedals according to pattern using create_board
     # create_board places board from position: X+thickness, Y+width, Z+height
@@ -330,7 +332,8 @@ def generate_console(parameters):
                         -p.base_depth_g - p.tall_pedal_length_g,  # At far end of pedal
                         pedal_base_z + p.pedal_thickness_g        # On top of pedal
                     ),
-                    rotation=(0, 0, 0)
+                    rotation=(0, 0, 0),
+                    material="black"  # Black material for sharp pedal caps
                 )
                 sharp_caps.append(cap_part)
                 sharp_index += 1
@@ -351,8 +354,8 @@ def generate_console(parameters):
     frame_back_height = getattr(p, 'frame_back_height_g', 100)
     frame_front_height = getattr(p, 'frame_front_height_g', 40)
 
-    # Frame base Z position
-    frame_base_z = pedal_base_z
+    # Frame/enclosure base Z position (sits on floor with small gap)
+    frame_base_z = enclosure_base_z
 
     # Add frame side boards (cheeks) - vertical boards on sides
     # Left side board - extends along Y (depth), height in Z
@@ -415,8 +418,17 @@ def generate_console(parameters):
         parts.append(front_part)
 
     # Combine all parts into a compound
+    # Note: sharp_caps are added last, so they will be the last meshes in the GLTF export
+    # The Three.js viewer identifies them by their position (after normal parts count)
     all_parts = parts + sharp_caps
+
+    # Store metadata about mesh counts for the viewer
+    # This will be used to identify which meshes are sharp caps
     result = Compound(children=all_parts)
+
+    # Store counts as a custom attribute (will be available to streamlit app)
+    result._wood_mesh_count = len(parts)
+    result._cap_mesh_count = len(sharp_caps)
 
     return result
 

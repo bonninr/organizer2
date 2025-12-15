@@ -37,6 +37,67 @@ class Tessellation(Enum):
     FINE = 0.01
 
 
+def _collect_part_labels(model):
+    """
+    Collect labels from all parts in the model tree using PreOrderIter.
+
+    Args:
+        model: build123d Shape (Compound or Part)
+
+    Returns:
+        list: List of labels for parts that have meshes (non-Compound or leaf nodes)
+    """
+    from anytree import PreOrderIter
+    from build123d import Compound
+
+    labels = []
+    for node in PreOrderIter(model):
+        # Skip compound nodes that are just containers (have children)
+        if isinstance(node, Compound) and node.children:
+            continue
+        # Include nodes that will become meshes
+        if hasattr(node, 'wrapped') and node.wrapped is not None:
+            labels.append(node.label or '')
+    return labels
+
+
+def _postprocess_gltf_with_labels(gltf_path, labels):
+    """
+    Post-process a GLTF file to add mesh names from part labels.
+
+    The OpenCASCADE GLTF writer doesn't preserve labels as mesh names,
+    so we modify the GLTF JSON to add them after export.
+
+    Three.js GLTFLoader uses the node name (not mesh name) for Object3D.name,
+    so we update both mesh names and node names for nodes that reference
+    labeled meshes.
+
+    Args:
+        gltf_path: Path to the GLTF file
+        labels: List of labels in the same order as meshes
+    """
+    with open(gltf_path, 'r') as f:
+        gltf = json.load(f)
+
+    # Update mesh names with labels
+    meshes = gltf.get('meshes', [])
+    for i, mesh in enumerate(meshes):
+        if i < len(labels) and labels[i]:
+            mesh['name'] = labels[i]
+
+    # Also update node names for nodes that reference labeled meshes
+    # This is needed because Three.js GLTFLoader uses node names for Object3D.name
+    nodes = gltf.get('nodes', [])
+    for node in nodes:
+        mesh_idx = node.get('mesh')
+        if mesh_idx is not None and mesh_idx < len(labels) and labels[mesh_idx]:
+            node['name'] = labels[mesh_idx]
+
+    # Write back the modified GLTF
+    with open(gltf_path, 'w') as f:
+        json.dump(gltf, f)
+
+
 def generate_temp_file(model, file_format, quality="medium"):
     """
     Generates a temporary file with the specified format using build123d.
@@ -57,8 +118,15 @@ def generate_temp_file(model, file_format, quality="medium"):
         file_suffix = ".gltf"
         with tempfile.NamedTemporaryFile(delete=False, suffix=file_suffix) as tmpfile:
             try:
+                # Collect labels before export (they're preserved in the model tree)
+                labels = _collect_part_labels(model)
+
                 # Export using build123d's export_gltf function
                 export_gltf(model, tmpfile.name, linear_deflection=tolerance, angular_deflection=0.1)
+
+                # Post-process to add mesh names from labels
+                _postprocess_gltf_with_labels(tmpfile.name, labels)
+
                 return tmpfile.name
             except Exception as e:
                 # Fallback to STL if GLTF fails
