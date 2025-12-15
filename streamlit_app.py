@@ -36,7 +36,7 @@ from technical_drawing import create_a3_technical_drawing, generate_technical_dr
 
 
 # Cache version - increment to invalidate cache when export logic changes
-_CACHE_VERSION = 6  # v6: Enclosure 5mm from floor, pedals 50mm (~2in) for pivot clearance
+_CACHE_VERSION = 15  # v15: Added keyboard generation to vertical console, separated cabinet width from keyboard width
 
 @st.cache_data
 def generate_and_export_console_cached(
@@ -241,39 +241,90 @@ def main():
                     help="Thickness of console feet"
                 )
 
-        # KEYBOARD SECTION (Vertical only)
+        # KEYBOARD CABINET SECTION (Vertical only)
         if console_type == "vertical":
-            with st.expander("Keyboard", expanded=False):
-                keyboard_width = st.slider(
+            with st.expander("Keyboard Cabinet", expanded=False):
+                keyboard_cabinet_width = st.slider(
+                    'Cabinet Width (mm)',
+                    min_value=600, max_value=1200,
+                    value=default_params["Keyboard_cabinet"][0]["keyboard_cabinet_width_g"],
+                    step=20,
+                    help="Width of keyboard cabinet area (allows for cheeks on sides)"
+                )
+
+                keyboard_cabinet_depth = st.slider(
+                    'Cabinet Depth (mm)',
+                    min_value=300, max_value=500,
+                    value=default_params["Keyboard_cabinet"][1]["keyboard_cabinet_depth_g"],
+                    step=25,
+                    help="Depth of keyboard cabinet compartment"
+                )
+
+                keyboard_cabinet_height = st.slider(
+                    'Cabinet Height (mm)',
+                    min_value=150, max_value=300,
+                    value=default_params["Keyboard_cabinet"][2]["keyboard_cabinet_height_g"],
+                    step=10,
+                    help="Height of keyboard cabinet compartment"
+                )
+
+                keyboard_cabinet_offset = st.slider(
+                    'Cabinet Offset (mm)',
+                    min_value=100, max_value=300,
+                    value=default_params["Keyboard_cabinet"][3]["keyboard_cabinet_offset_g"],
+                    step=10,
+                    help="Keyboard cabinet positioning offset"
+                )
+
+        # KEYBOARDS SECTION (Vertical only - actual keyboard manuals)
+        if console_type == "vertical":
+            with st.expander("Keyboards", expanded=True):
+                v_keyboard_num_manuals = st.slider(
+                    'Number of Manuals',
+                    min_value=0, max_value=4,
+                    value=int(default_params["Keyboards"][0]["keyboard_num_manuals_g"]),
+                    step=1,
+                    help="Number of keyboard manuals (0 to disable)"
+                )
+
+                v_keyboard_total_keys = st.slider(
+                    'Total Keys',
+                    min_value=32, max_value=88,
+                    value=int(default_params["Keyboards"][1]["keyboard_total_keys_g"]),
+                    step=1,
+                    help="Total number of keys per manual (61 = 5 octaves standard organ, 88 = full piano)"
+                )
+
+                v_keyboard_total_width = st.slider(
                     'Keyboard Width (mm)',
                     min_value=600, max_value=1200,
-                    value=default_params["Keyboard"][0]["keyboard_width_g"],
-                    step=20,
-                    help="Width of keyboard compartment"
-                )
-
-                keyboard_depth = st.slider(
-                    'Keyboard Depth (mm)',
-                    min_value=300, max_value=500,
-                    value=default_params["Keyboard"][1]["keyboard_depth_g"],
-                    step=25,
-                    help="Depth of keyboard compartment"
-                )
-
-                keyboard_height = st.slider(
-                    'Keyboard Height (mm)',
-                    min_value=150, max_value=300,
-                    value=default_params["Keyboard"][2]["keyboard_height_g"],
+                    value=int(default_params["Keyboards"][2]["keyboard_total_width_g"]),
                     step=10,
-                    help="Height of keyboard compartment"
+                    help="Total keyboard width - should be less than cabinet width for cheeks"
                 )
 
-                keyboard_offset = st.slider(
-                    'Keyboard Offset (mm)',
-                    min_value=100, max_value=300,
-                    value=default_params["Keyboard"][3]["keyboard_offset_g"],
-                    step=10,
-                    help="Keyboard positioning offset"
+                v_keyboard_white_key_length = st.slider(
+                    'White Key Length (mm)',
+                    min_value=120, max_value=180,
+                    value=int(default_params["Keyboards"][3]["keyboard_white_key_length_g"]),
+                    step=5,
+                    help="Visible length of white keys"
+                )
+
+                v_keyboard_vertical_spacing = st.slider(
+                    'Vertical Spacing (mm)',
+                    min_value=60, max_value=120,
+                    value=int(default_params["Keyboards"][10]["keyboard_vertical_spacing_g"]),
+                    step=5,
+                    help="Vertical distance between manuals"
+                )
+
+                v_keyboard_depth_offset = st.slider(
+                    'Depth Offset (mm)',
+                    min_value=50, max_value=200,
+                    value=int(default_params["Keyboards"][11]["keyboard_depth_offset_g"]),
+                    step=5,
+                    help="How much each higher manual is stepped back"
                 )
 
         # SPEAKERS SECTION (Vertical only)
@@ -507,6 +558,65 @@ def main():
                     value=default_params["Top"][3]["top_notch_start_y_g"],
                     step=25,
                     help="Y position where top notch starts"
+                )
+
+        # KEYBOARDS SECTION (Normal only)
+        if console_type == "normal":
+            with st.expander("Keyboards", expanded=True):
+                keyboard_num_manuals = st.slider(
+                    'Number of Manuals',
+                    min_value=0, max_value=4,
+                    value=int(default_params["Keyboards"][0]["keyboard_num_manuals_g"]),
+                    step=1,
+                    help="Number of keyboard manuals (0 to disable)"
+                )
+
+                keyboard_total_keys = st.slider(
+                    'Total Keys',
+                    min_value=32, max_value=88,
+                    value=int(default_params["Keyboards"][1]["keyboard_total_keys_g"]),
+                    step=1,
+                    help="Total number of keys per manual (61 = 5 octaves standard organ, 88 = full piano)"
+                )
+
+                keyboard_total_width = st.slider(
+                    'Total Keyboard Width (mm)',
+                    min_value=600, max_value=1200,
+                    value=int(default_params["Keyboards"][2]["keyboard_total_width_g"]),
+                    step=10,
+                    help="Total width of keyboard - key width is calculated automatically"
+                )
+
+                keyboard_white_key_length = st.slider(
+                    'White Key Length (mm)',
+                    min_value=120, max_value=180,
+                    value=int(default_params["Keyboards"][3]["keyboard_white_key_length_g"]),
+                    step=5,
+                    help="Visible length of white keys"
+                )
+
+                keyboard_vertical_spacing = st.slider(
+                    'Vertical Spacing (mm)',
+                    min_value=60, max_value=120,
+                    value=int(default_params["Keyboards"][10]["keyboard_vertical_spacing_g"]),
+                    step=5,
+                    help="Vertical distance between manuals"
+                )
+
+                keyboard_depth_offset = st.slider(
+                    'Depth Offset (mm)',
+                    min_value=50, max_value=200,
+                    value=int(default_params["Keyboards"][11]["keyboard_depth_offset_g"]),
+                    step=5,
+                    help="How much each higher manual is stepped back (default: key length - 20mm)"
+                )
+
+                keyboard_y_offset = st.slider(
+                    'Y Offset from Front (mm)',
+                    min_value=-200, max_value=200,
+                    value=int(default_params["Keyboards"][12]["keyboard_y_offset_g"]),
+                    step=10,
+                    help="Offset from front edge (0 = keys at front, negative = keys extend past front)"
                 )
 
         # BENCH SECTION (Bench only)
@@ -768,11 +878,25 @@ def main():
                 {"note_stand_angle_g": note_stand_angle},
                 {"note_shelf_height_g": note_shelf_height}
             ],
-            "Keyboard": [
-                {"keyboard_width_g": keyboard_width},
-                {"keyboard_depth_g": keyboard_depth},
-                {"keyboard_height_g": keyboard_height},
-                {"keyboard_offset_g": keyboard_offset}
+            "Keyboard_cabinet": [
+                {"keyboard_cabinet_width_g": keyboard_cabinet_width},
+                {"keyboard_cabinet_depth_g": keyboard_cabinet_depth},
+                {"keyboard_cabinet_height_g": keyboard_cabinet_height},
+                {"keyboard_cabinet_offset_g": keyboard_cabinet_offset}
+            ],
+            "Keyboards": [
+                {"keyboard_num_manuals_g": v_keyboard_num_manuals},
+                {"keyboard_total_keys_g": v_keyboard_total_keys},
+                {"keyboard_total_width_g": v_keyboard_total_width},
+                {"keyboard_white_key_length_g": v_keyboard_white_key_length},
+                {"keyboard_white_key_height_g": 15},
+                {"keyboard_black_key_width_ratio_g": 0.65},
+                {"keyboard_black_key_length_g": 95},
+                {"keyboard_black_key_height_g": 10},
+                {"keyboard_key_gap_g": 0.5},
+                {"keyboard_base_thickness_g": 10},
+                {"keyboard_vertical_spacing_g": v_keyboard_vertical_spacing},
+                {"keyboard_depth_offset_g": v_keyboard_depth_offset}
             ],
             "Speakers": [
                 {"front_speaker_width_g": front_speaker_width},
@@ -824,6 +948,21 @@ def main():
                 {"top_height_g": top_height},
                 {"top_notch_start_x_g": top_notch_start_x},
                 {"top_notch_start_y_g": top_notch_start_y}
+            ],
+            "Keyboards": [
+                {"keyboard_num_manuals_g": keyboard_num_manuals},
+                {"keyboard_total_keys_g": keyboard_total_keys},
+                {"keyboard_total_width_g": keyboard_total_width},  # Total width - key width calculated from this
+                {"keyboard_white_key_length_g": keyboard_white_key_length},
+                {"keyboard_white_key_height_g": 15},     # Organ white key height (mm)
+                {"keyboard_black_key_width_ratio_g": 0.65},  # Black key width as ratio of white key
+                {"keyboard_black_key_length_g": 95},     # Standard, not exposed in UI
+                {"keyboard_black_key_height_g": 10},     # Organ black key height (mm)
+                {"keyboard_key_gap_g": 0.5},             # Standard, not exposed in UI
+                {"keyboard_base_thickness_g": 10},       # Standard, not exposed in UI
+                {"keyboard_vertical_spacing_g": keyboard_vertical_spacing},
+                {"keyboard_depth_offset_g": keyboard_depth_offset},
+                {"keyboard_y_offset_g": keyboard_y_offset}
             ],
             "Display": [
                 {"show_dimensions_g": show_dimensions}

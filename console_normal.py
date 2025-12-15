@@ -4,6 +4,7 @@ Normal Console Generator - build123d Version
 This module generates a normal (tower-style) organ console with:
 - Base section with storage
 - Upper section with notched side panels
+- Keyboard manuals on the horizontal divider
 - Simpler design than vertical console
 - Suitable for compact spaces
 
@@ -17,6 +18,7 @@ Usage:
 
 from build123d import *
 from utils import DotDict, create_board
+from keyboard import generate_keyboard_stack, get_keyboard_dimensions, get_keyboard_stack_dimensions
 
 
 def get_default_parameters():
@@ -46,6 +48,21 @@ def get_default_parameters():
             {"top_height_g": 350},
             {"top_notch_start_x_g": 350},
             {"top_notch_start_y_g": 150}
+        ],
+        "Keyboards": [
+            {"keyboard_num_manuals_g": 2},           # Number of keyboards (manuals)
+            {"keyboard_total_keys_g": 61},           # Total keys (61 = 5 octaves, standard organ manual)
+            {"keyboard_total_width_g": 870},         # Total keyboard width (mm) - key width calculated from this
+            {"keyboard_white_key_length_g": 150},    # Visible white key length (mm)
+            {"keyboard_white_key_height_g": 15},     # White key height/thickness (mm)
+            {"keyboard_black_key_width_ratio_g": 0.65},  # Black key width as ratio of white key width
+            {"keyboard_black_key_length_g": 95},     # Black key length (mm)
+            {"keyboard_black_key_height_g": 10},     # Black key height above white (mm)
+            {"keyboard_key_gap_g": 0.5},             # Gap between keys (mm)
+            {"keyboard_base_thickness_g": 10},       # Base plate thickness (mm)
+            {"keyboard_vertical_spacing_g": 80},     # Vertical spacing between manuals (mm)
+            {"keyboard_depth_offset_g": 130},        # Each higher manual offset back (mm) = key_length - 20
+            {"keyboard_y_offset_g": 0}               # Offset from back of horizontal divider (mm), 0 = keys at front
         ]
     }
 
@@ -284,6 +301,42 @@ def generate_console(parameters):
             rotation=(0, -30, 90),
             show_dimensions=show_dims
         ))
+
+    # Generate keyboards (manuals) on top of the horizontal divider
+    num_manuals = getattr(p, 'keyboard_num_manuals_g', 2)
+    if num_manuals > 0:
+        # Calculate keyboard dimensions for centering
+        kbd_dims = get_keyboard_dimensions(parameters)
+        kbd_width = kbd_dims['width']
+        kbd_depth = kbd_dims['depth']
+
+        # Position keyboards centered on the console, on top of the horizontal divider
+        # The horizontal divider is at Z = base_height_g, with thickness general_board_thickness_g
+        # Keyboards sit on top at Z = base_height_g + general_board_thickness_g
+        #
+        # Console X runs from -general_board_thickness to -(organ_internal_width + 2*general_board_thickness)
+        # Console center X = -general_board_thickness - organ_internal_width/2
+        # Console Y runs from 0 (back) to top_depth_g (front of horizontal divider)
+        # Player sits at high Y values, facing toward -Y (back of console)
+        # Keys should extend toward the player (in +Y direction)
+
+        keyboard_y_offset = getattr(p, 'keyboard_y_offset_g', 0)
+
+        # Position: centered in X, positioned near the front of the divider, on top of divider
+        # Keyboard position is the back edge (low Y), keys extend toward player (+Y direction)
+        # keyboard_y_offset is distance from back of divider (0 = at back, higher values move toward front)
+        # The horizontal divider extends from Y=general_board_thickness_g to Y=top_depth_g+general_board_thickness_g
+        # To place keyboard at front: back edge at (front_of_divider - kbd_depth)
+        # Front of divider is at Y = general_board_thickness_g + top_depth_g
+        keyboard_front_y = p.general_board_thickness_g + p.top_depth_g
+        keyboard_position = (
+            -p.general_board_thickness_g - p.organ_internal_width_g / 2 - kbd_width / 2,  # Centered in X
+            keyboard_front_y - kbd_depth + keyboard_y_offset,  # Back edge positioned so front is at divider front (minus any offset)
+            p.base_height_g + p.general_board_thickness_g  # On top of horizontal divider
+        )
+
+        keyboard_stack = generate_keyboard_stack(parameters, base_position=keyboard_position)
+        parts.append(keyboard_stack)
 
     # Combine all parts into a compound
     result = Compound(children=parts)

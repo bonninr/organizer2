@@ -19,6 +19,7 @@ Usage:
 import math
 from build123d import *
 from utils import DotDict, create_board
+from keyboard import generate_keyboard_stack, get_keyboard_dimensions
 
 
 def get_default_parameters():
@@ -41,11 +42,25 @@ def get_default_parameters():
             {"note_stand_angle_g": 10},
             {"note_shelf_height_g": 70}
         ],
-        "Keyboard": [
-            {"keyboard_width_g": 840},
-            {"keyboard_depth_g": 400},
-            {"keyboard_height_g": 200},
-            {"keyboard_offset_g": 200}
+        "Keyboard_cabinet": [
+            {"keyboard_cabinet_width_g": 900},      # Width of the keyboard cabinet area (for cheeks)
+            {"keyboard_cabinet_depth_g": 400},
+            {"keyboard_cabinet_height_g": 200},
+            {"keyboard_cabinet_offset_g": 200}
+        ],
+        "Keyboards": [
+            {"keyboard_num_manuals_g": 2},           # Number of keyboards (manuals)
+            {"keyboard_total_keys_g": 61},           # Total keys (61 = 5 octaves, standard organ manual)
+            {"keyboard_total_width_g": 870},         # Total keyboard width (mm) - should be less than cabinet width for cheeks
+            {"keyboard_white_key_length_g": 150},    # Visible white key length (mm)
+            {"keyboard_white_key_height_g": 15},     # White key height/thickness (mm)
+            {"keyboard_black_key_width_ratio_g": 0.65},  # Black key width as ratio of white key width
+            {"keyboard_black_key_length_g": 95},     # Black key length (mm)
+            {"keyboard_black_key_height_g": 10},     # Black key height above white (mm)
+            {"keyboard_key_gap_g": 0.5},             # Gap between keys (mm)
+            {"keyboard_base_thickness_g": 10},       # Base plate thickness (mm)
+            {"keyboard_vertical_spacing_g": 80},     # Vertical spacing between manuals (mm)
+            {"keyboard_depth_offset_g": 130}         # Each higher manual offset back (mm)
         ],
         "Speakers": [
             {"front_speaker_width_g": 400},
@@ -134,7 +149,7 @@ def generate_board_list(parameters):
         {
             "name": "Cabinet Upper Back Panel",
             "width": p.organ_internal_width_g,
-            "height": p.keyboard_height_g + p.note_stand_height_g + p.general_board_thickness_g + p.front_speaker_height_g,
+            "height": p.keyboard_cabinet_height_g + p.note_stand_height_g + p.general_board_thickness_g + p.front_speaker_height_g,
             "thickness": p.general_board_thickness_g,
             "description": "Upper back panel of the cabinet"
         },
@@ -182,77 +197,77 @@ def generate_board_list(parameters):
         },
         {
             "name": "Cabinet Left Knobs Panel",
-            "width": (p.organ_internal_width_g - p.keyboard_width_g - 2 * p.general_board_thickness_g) / 2,
-            "height": p.keyboard_height_g + p.note_stand_height_g,
+            "width": (p.organ_internal_width_g - p.keyboard_cabinet_width_g - 2 * p.general_board_thickness_g) / 2,
+            "height": p.keyboard_cabinet_height_g + p.note_stand_height_g,
             "thickness": p.general_board_thickness_g,
             "description": "Left register knobs panel"
         },
         {
             "name": "Cabinet Left Knobs Lateral Panel",
             "width": p.base_depth_g + p.general_board_thickness_g + p.general_board_offset_g,
-            "height": p.keyboard_height_g + p.note_stand_height_g,
+            "height": p.keyboard_cabinet_height_g + p.note_stand_height_g,
             "thickness": p.general_board_thickness_g,
             "description": "Lateral board for the left register block"
         },
         {
             "name": "Cabinet Right Knobs Panel",
-            "width": (p.organ_internal_width_g - p.keyboard_width_g - 2 * p.general_board_thickness_g) / 2,
-            "height": p.keyboard_height_g + p.note_stand_height_g,
+            "width": (p.organ_internal_width_g - p.keyboard_cabinet_width_g - 2 * p.general_board_thickness_g) / 2,
+            "height": p.keyboard_cabinet_height_g + p.note_stand_height_g,
             "thickness": p.general_board_thickness_g,
             "description": "Right register knobs panel"
         },
         {
             "name": "Cabinet Right Knobs Lateral Panel",
             "width": p.base_depth_g + p.general_board_thickness_g + p.general_board_offset_g,
-            "height": p.keyboard_height_g + p.note_stand_height_g,
+            "height": p.keyboard_cabinet_height_g + p.note_stand_height_g,
             "thickness": p.general_board_thickness_g,
             "description": "Lateral board for the right register block"
         },
         {
             "name": "Cabinet Note Stand Upper Panel",
-            "width": p.keyboard_width_g,
+            "width": p.keyboard_cabinet_width_g,
             "height": p.note_shelf_height_g,
             "thickness": p.general_board_thickness_g,
             "description": "The board on the top of the note stand section"
         },
         {
             "name": "Cabinet Main Shelf",
-            "width": p.keyboard_width_g,
+            "width": p.keyboard_cabinet_width_g,
             "height": p.base_depth_g + p.base_front_distance_g,
             "thickness": p.general_board_thickness_g,
             "description": "The main shelf for keyboards"
         },
         {
             "name": "Cabinet Main Shelf (Left Part)",
-            "width": (p.organ_internal_width_g - p.keyboard_width_g) / 2,
+            "width": (p.organ_internal_width_g - p.keyboard_cabinet_width_g) / 2,
             "height": p.base_depth_g + 2 * p.general_board_thickness_g + p.general_board_offset_g,
             "thickness": p.general_board_thickness_g,
             "description": "Left part of the main shelf under the knobs block"
         },
         {
             "name": "Cabinet Main Shelf (Right Part)",
-            "width": (p.organ_internal_width_g - p.keyboard_width_g) / 2,
+            "width": (p.organ_internal_width_g - p.keyboard_cabinet_width_g) / 2,
             "height": p.base_depth_g + 2 * p.general_board_thickness_g + p.general_board_offset_g,
             "thickness": p.general_board_thickness_g,
             "description": "Right part of the main shelf under the knobs block"
         },
         {
             "name": "Note Stand Front Panel",
-            "width": p.keyboard_width_g,
+            "width": p.keyboard_cabinet_width_g,
             "height": p.note_shelf_height_g,
             "thickness": p.general_board_thickness_g,
             "description": "The front board between keyboard and the note stand"
         },
         {
             "name": "Note Stand Shelf",
-            "width": p.keyboard_width_g,
+            "width": p.keyboard_cabinet_width_g,
             "height": (p.note_stand_height_g - p.note_shelf_height_g) / math.cos(math.radians(p.note_stand_angle_g)),
             "thickness": p.general_board_thickness_g,
             "description": "The shelf of the note stand calculated according to slope angle"
         },
         {
             "name": "Note Stand",
-            "width": p.keyboard_width_g,
+            "width": p.keyboard_cabinet_width_g,
             "height": p.note_stand_height_g - p.note_shelf_height_g,
             "thickness": p.general_board_thickness_g,
             "description": "The shelf of the note stand"
@@ -274,14 +289,14 @@ def generate_board_list(parameters):
         {
             "name": "Cabinet Left Lateral",
             "width": p.base_depth_g + 2 * p.general_board_thickness_g + 2 * p.general_board_offset_g,
-            "height": p.base_height_g + p.keyboard_height_g + p.note_stand_height_g + 2 * p.general_board_thickness_g + p.front_speaker_height_g - p.general_feet_thickness_g,
+            "height": p.base_height_g + p.keyboard_cabinet_height_g + p.note_stand_height_g + 2 * p.general_board_thickness_g + p.front_speaker_height_g - p.general_feet_thickness_g,
             "thickness": p.general_board_thickness_g,
             "description": "The left lateral board with the hole for the speaker"
         },
         {
             "name": "Cabinet Right Lateral",
             "width": p.base_depth_g + 2 * p.general_board_thickness_g + 2 * p.general_board_offset_g,
-            "height": p.base_height_g + p.keyboard_height_g + p.note_stand_height_g + 2 * p.general_board_thickness_g + p.front_speaker_height_g - p.general_feet_thickness_g,
+            "height": p.base_height_g + p.keyboard_cabinet_height_g + p.note_stand_height_g + 2 * p.general_board_thickness_g + p.front_speaker_height_g - p.general_feet_thickness_g,
             "thickness": p.general_board_thickness_g,
             "description": "The right lateral board with the hole for the speaker"
         },
@@ -319,7 +334,7 @@ def generate_console(parameters):
         max_width = p.base_depth_g + 2 * p.general_board_thickness_g + p.general_board_offset_g,
         max_height = p.organ_internal_width_g,
         board_thickness = p.general_board_thickness_g,
-        position = (p.organ_internal_width_g / 2, 0, p.base_height_g + p.keyboard_height_g + p.note_stand_height_g + p.general_board_thickness_g + p.front_speaker_height_g),
+        position = (p.organ_internal_width_g / 2, 0, p.base_height_g + p.keyboard_cabinet_height_g + p.note_stand_height_g + p.general_board_thickness_g + p.front_speaker_height_g),
         rotation = (0, -90, 0),
         show_dimensions=show_dims
     ))
@@ -327,7 +342,7 @@ def generate_console(parameters):
     # Cabinet Upper Back Panel
     parts.append(create_board(
         max_width = p.organ_internal_width_g,
-        max_height = p.keyboard_height_g + p.note_stand_height_g + p.general_board_thickness_g + p.front_speaker_height_g,
+        max_height = p.keyboard_cabinet_height_g + p.note_stand_height_g + p.general_board_thickness_g + p.front_speaker_height_g,
         board_thickness = p.general_board_thickness_g,
         position = (p.organ_internal_width_g / 2, 0, p.base_height_g),
         rotation = (0, 0, 90),
@@ -380,7 +395,7 @@ def generate_console(parameters):
         max_width = p.organ_internal_width_g - 2 * p.front_speaker_width_g,
         max_height = p.front_speaker_height_g,
         board_thickness = p.general_board_thickness_g,
-        position = ((p.organ_internal_width_g - 2 * p.front_speaker_width_g) / 2, p.base_depth_g + p.general_board_thickness_g, p.base_height_g + p.keyboard_height_g + p.note_stand_height_g + p.general_board_thickness_g),
+        position = ((p.organ_internal_width_g - 2 * p.front_speaker_width_g) / 2, p.base_depth_g + p.general_board_thickness_g, p.base_height_g + p.keyboard_cabinet_height_g + p.note_stand_height_g + p.general_board_thickness_g),
         rotation = (0, 0, 90),
         show_dimensions=show_dims
     ))
@@ -390,14 +405,14 @@ def generate_console(parameters):
         max_width = p.base_depth_g + p.general_board_thickness_g + p.general_board_offset_g,
         max_height = p.organ_internal_width_g,
         board_thickness = p.general_board_thickness_g,
-        position = (p.organ_internal_width_g / 2, p.general_board_thickness_g, p.base_height_g + p.keyboard_height_g + p.note_stand_height_g),
+        position = (p.organ_internal_width_g / 2, p.general_board_thickness_g, p.base_height_g + p.keyboard_cabinet_height_g + p.note_stand_height_g),
         rotation = (0, -90, 0),
         show_dimensions=show_dims
     ))
 
     # Cabinet Left Knobs Panel
-    left_panel_width = (p.organ_internal_width_g - p.keyboard_width_g - 2 * p.general_board_thickness_g) / 2
-    left_panel_height = p.keyboard_height_g + p.note_stand_height_g
+    left_panel_width = (p.organ_internal_width_g - p.keyboard_cabinet_width_g - 2 * p.general_board_thickness_g) / 2
+    left_panel_height = p.keyboard_cabinet_height_g + p.note_stand_height_g
     left_knob_holes = generate_knob_holes(left_panel_width, left_panel_height, parameters) if p.enable_knob_holes_g else []
 
     parts.append(create_board(
@@ -413,16 +428,16 @@ def generate_console(parameters):
     # Cabinet Left Knobs Lateral Panel
     parts.append(create_board(
         max_width = p.base_depth_g + p.general_board_thickness_g + p.general_board_offset_g,
-        max_height = p.keyboard_height_g + p.note_stand_height_g,
+        max_height = p.keyboard_cabinet_height_g + p.note_stand_height_g,
         board_thickness = p.general_board_thickness_g,
-        position = (p.keyboard_width_g / 2, p.general_board_thickness_g, p.base_height_g),
+        position = (p.keyboard_cabinet_width_g / 2, p.general_board_thickness_g, p.base_height_g),
         rotation = (0, 0, 0),
         show_dimensions=show_dims
     ))
 
     # Cabinet Right Knobs Panel
-    right_panel_width = (p.organ_internal_width_g - p.keyboard_width_g - 2 * p.general_board_thickness_g) / 2
-    right_panel_height = p.keyboard_height_g + p.note_stand_height_g
+    right_panel_width = (p.organ_internal_width_g - p.keyboard_cabinet_width_g - 2 * p.general_board_thickness_g) / 2
+    right_panel_height = p.keyboard_cabinet_height_g + p.note_stand_height_g
     right_knob_holes = generate_knob_holes(right_panel_width, right_panel_height, parameters) if p.enable_knob_holes_g else []
 
     parts.append(create_board(
@@ -438,36 +453,36 @@ def generate_console(parameters):
     # Cabinet Right Knobs Lateral Panel
     parts.append(create_board(
         max_width = p.base_depth_g + p.general_board_thickness_g + p.general_board_offset_g,
-        max_height = p.keyboard_height_g + p.note_stand_height_g,
+        max_height = p.keyboard_cabinet_height_g + p.note_stand_height_g,
         board_thickness = p.general_board_thickness_g,
-        position = (-p.keyboard_width_g / 2 - p.general_board_thickness_g, p.general_board_thickness_g, p.base_height_g),
+        position = (-p.keyboard_cabinet_width_g / 2 - p.general_board_thickness_g, p.general_board_thickness_g, p.base_height_g),
         rotation = (0, 0, 0),
         show_dimensions=show_dims
     ))
 
     # Cabinet Note Stand Upper Panel
     parts.append(create_board(
-        max_width = p.keyboard_width_g,
+        max_width = p.keyboard_cabinet_width_g,
         max_height = p.note_shelf_height_g,
         board_thickness = p.general_board_thickness_g,
-        position = (p.keyboard_width_g / 2, p.base_depth_g + p.general_board_thickness_g, p.base_height_g + p.keyboard_height_g + p.note_stand_height_g - p.note_shelf_height_g),
+        position = (p.keyboard_cabinet_width_g / 2, p.base_depth_g + p.general_board_thickness_g, p.base_height_g + p.keyboard_cabinet_height_g + p.note_stand_height_g - p.note_shelf_height_g),
         rotation = (0, 0, 90),
         show_dimensions=show_dims
     ))
 
     # Cabinet Main Shelf
     parts.append(create_board(
-        max_width = p.keyboard_width_g,
+        max_width = p.keyboard_cabinet_width_g,
         max_height = p.base_depth_g + p.base_front_distance_g,
         board_thickness = p.general_board_thickness_g,
-        position = (p.keyboard_width_g / 2, 0, p.base_height_g),
+        position = (p.keyboard_cabinet_width_g / 2, 0, p.base_height_g),
         rotation = (0, 90, 90),
         show_dimensions=show_dims
     ))
 
     # Cabinet Main Shelf (left part)
     parts.append(create_board(
-        max_width = (p.organ_internal_width_g - p.keyboard_width_g) / 2,
+        max_width = (p.organ_internal_width_g - p.keyboard_cabinet_width_g) / 2,
         max_height = p.base_depth_g + 2 * p.general_board_thickness_g + p.general_board_offset_g,
         board_thickness = p.general_board_thickness_g,
         position = (p.organ_internal_width_g / 2, 0, p.base_height_g),
@@ -477,40 +492,65 @@ def generate_console(parameters):
 
     # Cabinet Main Shelf (right part)
     parts.append(create_board(
-        max_width = (p.organ_internal_width_g - p.keyboard_width_g) / 2,
+        max_width = (p.organ_internal_width_g - p.keyboard_cabinet_width_g) / 2,
         max_height = p.base_depth_g + 2 * p.general_board_thickness_g + p.general_board_offset_g,
         board_thickness = p.general_board_thickness_g,
-        position = (-p.keyboard_width_g / 2, 0, p.base_height_g),
+        position = (-p.keyboard_cabinet_width_g / 2, 0, p.base_height_g),
         rotation = (0, 90, 90),
         show_dimensions=show_dims
     ))
 
+    # Generate keyboards (manuals) on top of the main shelf
+    num_manuals = getattr(p, 'keyboard_num_manuals_g', 2)
+    if num_manuals > 0:
+        # Calculate keyboard dimensions for positioning
+        kbd_dims = get_keyboard_dimensions(parameters)
+        kbd_width = kbd_dims['width']
+        kbd_depth = kbd_dims['depth']
+
+        # Position keyboards centered on the keyboard cabinet area, on top of main shelf
+        # Main shelf is at Z = base_height_g, with thickness general_board_thickness_g
+        # Cabinet area X runs from -keyboard_cabinet_width_g/2 to +keyboard_cabinet_width_g/2
+        # Y runs from 0 (back) to base_depth_g + base_front_distance_g (front)
+        # Player sits at high Y values, keys extend toward player (+Y direction)
+
+        # Position keyboard at front of main shelf, centered in the cabinet opening
+        shelf_front_y = p.base_depth_g + p.base_front_distance_g
+        keyboard_position = (
+            -kbd_width / 2,  # Centered in X (keyboard is narrower than cabinet for cheeks)
+            shelf_front_y - kbd_depth,  # Back edge positioned so front is at shelf front
+            p.base_height_g + p.general_board_thickness_g  # On top of main shelf
+        )
+
+        keyboard_stack = generate_keyboard_stack(parameters, base_position=keyboard_position)
+        parts.append(keyboard_stack)
+
     # Note Stand Front Panel
     parts.append(create_board(
-        max_width = p.keyboard_width_g,
+        max_width = p.keyboard_cabinet_width_g,
         max_height = p.note_shelf_height_g,
         board_thickness = p.general_board_thickness_g,
-        position = (-p.keyboard_width_g / 2, p.base_depth_g + p.keyboard_offset_g -p.general_board_offset_g - p.general_board_thickness_g - p.keyboard_depth_g, p.base_height_g + p.keyboard_height_g),
+        position = (-p.keyboard_cabinet_width_g / 2, p.base_depth_g + p.keyboard_cabinet_offset_g -p.general_board_offset_g - p.general_board_thickness_g - p.keyboard_cabinet_depth_g, p.base_height_g + p.keyboard_cabinet_height_g),
         rotation = (0, 0, -90),
         show_dimensions=show_dims
     ))
 
     # Note Stand Shelf
     parts.append(create_board(
-        max_width = p.keyboard_width_g,
+        max_width = p.keyboard_cabinet_width_g,
         max_height = p.note_shelf_height_g,
         board_thickness = p.general_board_thickness_g,
-        position = (p.keyboard_width_g / 2, p.base_depth_g + p.keyboard_offset_g -p.general_board_offset_g - p.general_board_thickness_g - p.keyboard_depth_g + p.note_shelf_height_g, p.base_height_g + p.keyboard_height_g + p.note_shelf_height_g - p.general_board_thickness_g),
+        position = (p.keyboard_cabinet_width_g / 2, p.base_depth_g + p.keyboard_cabinet_offset_g -p.general_board_offset_g - p.general_board_thickness_g - p.keyboard_cabinet_depth_g + p.note_shelf_height_g, p.base_height_g + p.keyboard_cabinet_height_g + p.note_shelf_height_g - p.general_board_thickness_g),
         rotation = (0, -90, 90),
         show_dimensions=show_dims
     ))
 
     # Note Stand
     parts.append(create_board(
-        max_width = p.keyboard_width_g,
+        max_width = p.keyboard_cabinet_width_g,
         max_height = (p.note_stand_height_g - p.note_shelf_height_g) / math.cos(math.radians(p.note_stand_angle_g)),
         board_thickness = p.general_board_thickness_g,
-        position = (-p.keyboard_width_g / 2, p.base_depth_g + p.keyboard_offset_g -p.general_board_offset_g - p.keyboard_depth_g, p.base_height_g + p.keyboard_height_g + p.note_shelf_height_g),
+        position = (-p.keyboard_cabinet_width_g / 2, p.base_depth_g + p.keyboard_cabinet_offset_g -p.general_board_offset_g - p.keyboard_cabinet_depth_g, p.base_height_g + p.keyboard_cabinet_height_g + p.note_shelf_height_g),
         rotation = (0, p.note_stand_angle_g, -90),
         show_dimensions=show_dims
     ))
@@ -538,11 +578,11 @@ def generate_console(parameters):
     # Cabinet Left Lateral
     left_lateral_holes = []
     if p.enable_lateral_speaker_holes_g:
-        left_lateral_holes = [[(p.base_depth_g + 2 * p.general_board_thickness_g + 2 * p.general_board_offset_g) / 2, (p.base_height_g + p.keyboard_height_g + p.note_stand_height_g + p.general_board_thickness_g + p.front_speaker_height_g - p.general_feet_thickness_g) / 2, p.side_speaker_width_g, p.side_speaker_height_g]]
+        left_lateral_holes = [[(p.base_depth_g + 2 * p.general_board_thickness_g + 2 * p.general_board_offset_g) / 2, (p.base_height_g + p.keyboard_cabinet_height_g + p.note_stand_height_g + p.general_board_thickness_g + p.front_speaker_height_g - p.general_feet_thickness_g) / 2, p.side_speaker_width_g, p.side_speaker_height_g]]
 
     parts.append(create_board(
         max_width = p.base_depth_g + 2 * p.general_board_thickness_g + 2 * p.general_board_offset_g,
-        max_height = p.base_height_g + p.keyboard_height_g + p.note_stand_height_g + 2 * p.general_board_thickness_g + p.front_speaker_height_g - p.general_feet_thickness_g,
+        max_height = p.base_height_g + p.keyboard_cabinet_height_g + p.note_stand_height_g + 2 * p.general_board_thickness_g + p.front_speaker_height_g - p.general_feet_thickness_g,
         board_thickness = p.general_board_thickness_g,
         position = (p.organ_internal_width_g / 2, 0, p.general_feet_thickness_g),
         rotation = (0, 0, 0),
@@ -553,11 +593,11 @@ def generate_console(parameters):
     # Cabinet Right Lateral
     right_lateral_holes = []
     if p.enable_lateral_speaker_holes_g:
-        right_lateral_holes = [[(p.base_depth_g + 2 * p.general_board_thickness_g + 2 * p.general_board_offset_g) / 2, (p.base_height_g + p.keyboard_height_g + p.note_stand_height_g + p.general_board_thickness_g + p.front_speaker_height_g - p.general_feet_thickness_g) / 2, p.side_speaker_width_g, p.side_speaker_height_g]]
+        right_lateral_holes = [[(p.base_depth_g + 2 * p.general_board_thickness_g + 2 * p.general_board_offset_g) / 2, (p.base_height_g + p.keyboard_cabinet_height_g + p.note_stand_height_g + p.general_board_thickness_g + p.front_speaker_height_g - p.general_feet_thickness_g) / 2, p.side_speaker_width_g, p.side_speaker_height_g]]
 
     parts.append(create_board(
         max_width = p.base_depth_g + 2 * p.general_board_thickness_g + 2 * p.general_board_offset_g,
-        max_height = p.base_height_g + p.keyboard_height_g + p.note_stand_height_g + 2 * p.general_board_thickness_g + p.front_speaker_height_g - p.general_feet_thickness_g,
+        max_height = p.base_height_g + p.keyboard_cabinet_height_g + p.note_stand_height_g + 2 * p.general_board_thickness_g + p.front_speaker_height_g - p.general_feet_thickness_g,
         board_thickness = p.general_board_thickness_g,
         position = (-p.organ_internal_width_g / 2 - p.general_board_thickness_g, 0, p.general_feet_thickness_g),
         rotation = (0, 0, 0),
