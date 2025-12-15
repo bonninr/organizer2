@@ -409,6 +409,58 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                 "fallback": null // Will use procedural color
             }};
 
+            // Special materials for non-wood parts (identified by mesh name containing "material:")
+            const specialMaterials = {{
+                "black": {{
+                    color: 0x1a1a1a,
+                    metalness: 0.1,
+                    roughness: 0.4,
+                    clearcoat: 0.3,
+                    clearcoatRoughness: 0.2
+                }},
+                "white": {{
+                    color: 0xf5f5f0,
+                    metalness: 0.0,
+                    roughness: 0.3,
+                    clearcoat: 0.5,
+                    clearcoatRoughness: 0.1
+                }},
+                "metal": {{
+                    color: 0x888888,
+                    metalness: 0.9,
+                    roughness: 0.2,
+                    clearcoat: 0.0,
+                    clearcoatRoughness: 0.0
+                }},
+                "dark_wood": {{
+                    color: 0x3d2817,
+                    metalness: 0.0,
+                    roughness: 0.3,
+                    clearcoat: 0.6,
+                    clearcoatRoughness: 0.1
+                }},
+                "ebony": {{
+                    color: 0x1c1c1c,
+                    metalness: 0.05,
+                    roughness: 0.25,
+                    clearcoat: 0.7,
+                    clearcoatRoughness: 0.1
+                }}
+            }};
+
+            // Helper function to check if a mesh should use a special material
+            function getSpecialMaterial(meshName) {{
+                if (!meshName) return null;
+                // Match "material:black", "materialblack", or "materialblack_12" (with numeric suffix)
+                // Use [a-zA-Z]+ to capture only letters (not underscores/numbers from GLTF suffixes)
+                const match = meshName.match(/material:?([a-zA-Z]+)/);
+                if (match && specialMaterials[match[1]]) {{
+                    console.log('✓ Found special material:', match[1], 'for mesh:', meshName);
+                    return specialMaterials[match[1]];
+                }}
+                return null;
+            }}
+
             // Global variables for model texture management
             let currentModel = null;
             let modelMaterials = []; 
@@ -608,86 +660,118 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                             // Apply texture using your recommended pattern
                             currentModel.traverse(function(child) {{
                                 if (child.isMesh) {{
-                                    // CRITICAL: Generate UV coordinates if missing
-                                    if (!child.geometry.attributes.uv) {{
-                                        console.log('🔧 Generating UV coordinates for mesh:', child.name || 'unnamed');
-                                        
-                                        // Get geometry
-                                        const geometry = child.geometry;
-                                        const positionAttribute = geometry.attributes.position;
-                                        const vertexCount = positionAttribute.count;
-                                        
-                                        // Create UV coordinates using triplanar projection
-                                        const uvs = new Float32Array(vertexCount * 2);
-                                        const position = new THREE.Vector3();
-                                        const normal = new THREE.Vector3();
-                                        
-                                        // Calculate bounding box for normalization
-                                        geometry.computeBoundingBox();
-                                        const box = geometry.boundingBox;
-                                        const size = new THREE.Vector3();
-                                        box.getSize(size);
-                                        
-                                        // Compute vertex normals if not present
-                                        if (!geometry.attributes.normal) {{
-                                            geometry.computeVertexNormals();
-                                        }}
-                                        
-                                        const normalAttribute = geometry.attributes.normal;
-                                        
-                                        for (let i = 0; i < vertexCount; i++) {{
-                                            position.fromBufferAttribute(positionAttribute, i);
-                                            normal.fromBufferAttribute(normalAttribute, i);
-                                            
-                                            // Use triplanar mapping - project based on normal direction
-                                            let u, v;
-                                            const absNormal = new THREE.Vector3(
-                                                Math.abs(normal.x),
-                                                Math.abs(normal.y), 
-                                                Math.abs(normal.z)
-                                            );
-                                            
-                                            if (absNormal.x >= absNormal.y && absNormal.x >= absNormal.z) {{
-                                                // Project on YZ plane (for X-facing surfaces)
-                                                u = (position.z - box.min.z) / size.z;
-                                                v = (position.y - box.min.y) / size.y;
-                                            }} else if (absNormal.y >= absNormal.x && absNormal.y >= absNormal.z) {{
-                                                // Project on XZ plane (for Y-facing surfaces)
-                                                u = (position.x - box.min.x) / size.x;
-                                                v = (position.z - box.min.z) / size.z;
-                                            }} else {{
-                                                // Project on XY plane (for Z-facing surfaces)
-                                                u = (position.x - box.min.x) / size.x;
-                                                v = (position.y - box.min.y) / size.y;
-                                            }}
-                                            
-                                            uvs[i * 2] = u;
-                                            uvs[i * 2 + 1] = v;
-                                        }}
-                                        
-                                        // Add UV attribute to geometry
-                                        geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
-                                        console.log('✅ UV coordinates generated');
+                                    // Debug: log all mesh names to understand structure
+                                    console.log('DEBUG mesh:', child.name, 'parent:', child.parent ? child.parent.name : 'none');
+
+                                    // Check if this mesh OR its parent should use a special material
+                                    // GLTFLoader sometimes puts the name on the parent node, not the mesh
+                                    let meshName = child.name;
+                                    if (!meshName && child.parent) {{
+                                        meshName = child.parent.name;
                                     }}
-                                    
-                                    // Convert to MeshPhysicalMaterial for lacquer effect
-                                    const newMaterial = new THREE.MeshPhysicalMaterial({{
-                                        map: myTexture,
-                                        color: 0xffffff,
-                                        metalness: 0.0,
-                                        roughness: 0.2,
-                                        clearcoat: 0.8,
-                                        clearcoatRoughness: 0.1,
-                                        envMapIntensity: 1.0,
-                                        reflectivity: 0.8
-                                    }});
-                                    
-                                    child.material = newMaterial;
-                                    child.material.needsUpdate = true;
-                                    child.castShadow = true;
-                                    child.receiveShadow = true;
-                                    modelMaterials.push(child.material);
-                                    console.log('🎨 Texture applied to mesh:', child.name || 'unnamed');
+
+                                    const specialMat = getSpecialMaterial(meshName);
+
+                                    if (specialMat) {{
+                                        // Use special material (no wood texture)
+                                        const newMaterial = new THREE.MeshPhysicalMaterial({{
+                                            color: specialMat.color,
+                                            metalness: specialMat.metalness,
+                                            roughness: specialMat.roughness,
+                                            clearcoat: specialMat.clearcoat,
+                                            clearcoatRoughness: specialMat.clearcoatRoughness,
+                                            envMapIntensity: 0.5,
+                                            reflectivity: 0.5
+                                        }});
+
+                                        child.material = newMaterial;
+                                        child.material.needsUpdate = true;
+                                        child.castShadow = true;
+                                        child.receiveShadow = true;
+                                        // Don't add to modelMaterials - wood texture changes won't affect these
+                                        console.log('🎨 Special material applied to mesh:', meshName);
+                                    }} else {{
+                                        // CRITICAL: Generate UV coordinates if missing
+                                        if (!child.geometry.attributes.uv) {{
+                                            console.log('🔧 Generating UV coordinates for mesh:', child.name || 'unnamed');
+
+                                            // Get geometry
+                                            const geometry = child.geometry;
+                                            const positionAttribute = geometry.attributes.position;
+                                            const vertexCount = positionAttribute.count;
+
+                                            // Create UV coordinates using triplanar projection
+                                            const uvs = new Float32Array(vertexCount * 2);
+                                            const position = new THREE.Vector3();
+                                            const normal = new THREE.Vector3();
+
+                                            // Calculate bounding box for normalization
+                                            geometry.computeBoundingBox();
+                                            const box = geometry.boundingBox;
+                                            const size = new THREE.Vector3();
+                                            box.getSize(size);
+
+                                            // Compute vertex normals if not present
+                                            if (!geometry.attributes.normal) {{
+                                                geometry.computeVertexNormals();
+                                            }}
+
+                                            const normalAttribute = geometry.attributes.normal;
+
+                                            for (let i = 0; i < vertexCount; i++) {{
+                                                position.fromBufferAttribute(positionAttribute, i);
+                                                normal.fromBufferAttribute(normalAttribute, i);
+
+                                                // Use triplanar mapping - project based on normal direction
+                                                let u, v;
+                                                const absNormal = new THREE.Vector3(
+                                                    Math.abs(normal.x),
+                                                    Math.abs(normal.y),
+                                                    Math.abs(normal.z)
+                                                );
+
+                                                if (absNormal.x >= absNormal.y && absNormal.x >= absNormal.z) {{
+                                                    // Project on YZ plane (for X-facing surfaces)
+                                                    u = (position.z - box.min.z) / size.z;
+                                                    v = (position.y - box.min.y) / size.y;
+                                                }} else if (absNormal.y >= absNormal.x && absNormal.y >= absNormal.z) {{
+                                                    // Project on XZ plane (for Y-facing surfaces)
+                                                    u = (position.x - box.min.x) / size.x;
+                                                    v = (position.z - box.min.z) / size.z;
+                                                }} else {{
+                                                    // Project on XY plane (for Z-facing surfaces)
+                                                    u = (position.x - box.min.x) / size.x;
+                                                    v = (position.y - box.min.y) / size.y;
+                                                }}
+
+                                                uvs[i * 2] = u;
+                                                uvs[i * 2 + 1] = v;
+                                            }}
+
+                                            // Add UV attribute to geometry
+                                            geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+                                            console.log('✅ UV coordinates generated');
+                                        }}
+
+                                        // Convert to MeshPhysicalMaterial for lacquer effect
+                                        const newMaterial = new THREE.MeshPhysicalMaterial({{
+                                            map: myTexture,
+                                            color: 0xffffff,
+                                            metalness: 0.0,
+                                            roughness: 0.2,
+                                            clearcoat: 0.8,
+                                            clearcoatRoughness: 0.1,
+                                            envMapIntensity: 1.0,
+                                            reflectivity: 0.8
+                                        }});
+
+                                        child.material = newMaterial;
+                                        child.material.needsUpdate = true;
+                                        child.castShadow = true;
+                                        child.receiveShadow = true;
+                                        modelMaterials.push(child.material);
+                                        console.log('🎨 Wood texture applied to mesh:', child.name || 'unnamed');
+                                    }}
                                 }}
                             }});
                             
