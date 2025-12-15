@@ -632,6 +632,102 @@ def main():
                     help="Height of lateral side panels"
                 )
 
+            with st.expander("Enclosure Frame", expanded=True):
+                frame_side_height = st.slider(
+                    'Side Board Height (mm)',
+                    min_value=50, max_value=200,
+                    value=int(default_params["Frame"][0]["frame_side_height_g"]),
+                    step=10,
+                    help="Height of the side cheek boards"
+                )
+
+                frame_side_depth = st.slider(
+                    'Side Board Depth (mm)',
+                    min_value=0, max_value=900,
+                    value=int(default_params["Frame"][1]["frame_side_depth_g"]),
+                    step=10,
+                    help="Depth of side boards (0 = auto-calculate from pedal length)"
+                )
+
+                frame_back_height = st.slider(
+                    'Back Board Height (mm)',
+                    min_value=0, max_value=200,
+                    value=int(default_params["Frame"][2]["frame_back_height_g"]),
+                    step=10,
+                    help="Height of back board (0 = no back board)"
+                )
+
+                frame_back_depth = st.slider(
+                    'Back Board Depth (mm)',
+                    min_value=20, max_value=150,
+                    value=int(default_params["Frame"][3]["frame_back_depth_g"]),
+                    step=10,
+                    help="Depth/thickness of back board area"
+                )
+
+                frame_front_height = st.slider(
+                    'Front Board Height (mm)',
+                    min_value=0, max_value=100,
+                    value=int(default_params["Frame"][4]["frame_front_height_g"]),
+                    step=5,
+                    help="Height of front board (0 = no front board)"
+                )
+
+            with st.expander("Sharp Pedal Caps", expanded=True):
+                sharp_cap_length_end = st.slider(
+                    'Cap Length at Ends (mm)',
+                    min_value=50, max_value=200,
+                    value=int(default_params["Frame"][5]["sharp_cap_length_end_g"]),
+                    step=10,
+                    help="Length of caps at the left/right ends of the pedalboard"
+                )
+
+                sharp_cap_length_middle = st.slider(
+                    'Cap Length at Middle (mm)',
+                    min_value=50, max_value=200,
+                    value=int(default_params["Frame"][6]["sharp_cap_length_middle_g"]),
+                    step=10,
+                    help="Length of caps in the middle of the pedalboard"
+                )
+
+                sharp_cap_arc = st.slider(
+                    'Arc Curvature',
+                    min_value=0.0, max_value=1.0,
+                    value=float(default_params["Frame"][7]["sharp_cap_arc_g"]),
+                    step=0.1,
+                    help="0 = linear V-shape, 1 = smooth parabolic arc"
+                )
+
+                sharp_cap_height_ratio = st.slider(
+                    'Cap Height (x pedal thickness)',
+                    min_value=1.0, max_value=4.0,
+                    value=float(default_params["Frame"][8]["sharp_cap_height_ratio_g"]),
+                    step=0.25,
+                    help="Cap height as a multiple of pedal thickness"
+                )
+
+                sharp_cap_notch_height = st.slider(
+                    'Notch Min Height Ratio',
+                    min_value=0.0, max_value=1.0,
+                    value=float(default_params["Frame"][9]["sharp_cap_notch_height_g"]),
+                    step=0.05,
+                    help="Height at back of cap as ratio of full height (0.75 = 75%)"
+                )
+
+                sharp_cap_notch_width = st.slider(
+                    'Notch Start Position Ratio',
+                    min_value=0.0, max_value=1.0,
+                    value=float(default_params["Frame"][10]["sharp_cap_notch_width_g"]),
+                    step=0.05,
+                    help="Where notch starts as ratio of cap length (0.75 = starts at 75%)"
+                )
+
+                sharp_cap_color = st.checkbox(
+                    'Add Dark Caps to Sharp Pedals',
+                    value=default_params["Frame"][11]["sharp_cap_color_g"],
+                    help="Add colored end caps to sharp/flat pedals"
+                )
+
         # DISPLAY OPTIONS (exclude pedalboard)
         if console_type != "pedalboard":
             with st.expander("Display Options", expanded=False):
@@ -770,6 +866,20 @@ def main():
                 {"base_height_g": base_height},
                 {"base_depth_g": base_depth},
                 {"lateral_board_height_g": lateral_board_height}
+            ],
+            "Frame": [
+                {"frame_side_height_g": frame_side_height},
+                {"frame_side_depth_g": frame_side_depth},
+                {"frame_back_height_g": frame_back_height},
+                {"frame_back_depth_g": frame_back_depth},
+                {"frame_front_height_g": frame_front_height},
+                {"sharp_cap_length_end_g": sharp_cap_length_end},
+                {"sharp_cap_length_middle_g": sharp_cap_length_middle},
+                {"sharp_cap_arc_g": sharp_cap_arc},
+                {"sharp_cap_height_ratio_g": sharp_cap_height_ratio},
+                {"sharp_cap_notch_height_g": sharp_cap_notch_height},
+                {"sharp_cap_notch_width_g": sharp_cap_notch_width},
+                {"sharp_cap_color_g": sharp_cap_color}
             ]
         }
 
