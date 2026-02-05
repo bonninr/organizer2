@@ -15,6 +15,8 @@ import numpy as np
 from stpyvista import stpyvista as stv
 from datetime import datetime
 
+from file_exporters import prepare_gltf_for_download
+
 
 class DotDict:
     def __init__(self, nested_dict):
@@ -1218,13 +1220,14 @@ with col3:
     download_col1, download_col2, download_col3 = st.columns(3)
     
     with download_col1:
-        with open(file_path_gltf, 'rb') as gltf_file:
-            st.download_button(
-                label="Download GLTF File",
-                data=gltf_file,
-                file_name="organ_cabinet.gltf",
-                mime="model/gltf+json",
-            )
+        # Embed binary data into GLTF so it's self-contained
+        gltf_data = prepare_gltf_for_download(file_path_gltf)
+        st.download_button(
+            label="Download GLTF File",
+            data=gltf_data,
+            file_name="organ_cabinet.gltf",
+            mime="model/gltf+json",
+        )
     
     with download_col2:
         with open(file_path_step, 'rb') as step_file:

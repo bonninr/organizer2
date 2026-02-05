@@ -30,6 +30,40 @@ import base64
 from enum import Enum
 
 
+def prepare_gltf_for_download(gltf_file_path):
+    """
+    Prepare a GLTF file for download by embedding any external .bin files as base64 data URIs.
+
+    This ensures the downloaded GLTF file is self-contained and can be loaded
+    without requiring the external binary buffer files.
+
+    Args:
+        gltf_file_path: Path to the GLTF file
+
+    Returns:
+        bytes: The modified GLTF JSON as UTF-8 encoded bytes, ready for download
+    """
+    with open(gltf_file_path, 'r') as f:
+        gltf_json = json.load(f)
+
+    # Find and embed any external .bin files
+    gltf_dir = os.path.dirname(gltf_file_path)
+
+    if 'buffers' in gltf_json:
+        for buffer in gltf_json['buffers']:
+            if 'uri' in buffer and buffer['uri'].endswith('.bin'):
+                bin_file_path = os.path.join(gltf_dir, buffer['uri'])
+                if os.path.exists(bin_file_path):
+                    with open(bin_file_path, 'rb') as bin_file:
+                        bin_data = bin_file.read()
+                    bin_base64 = base64.b64encode(bin_data).decode('utf-8')
+                    # Replace the file reference with an embedded data URI
+                    buffer['uri'] = f"data:application/octet-stream;base64,{bin_base64}"
+
+    # Return as bytes for download
+    return json.dumps(gltf_json, indent=2).encode('utf-8')
+
+
 class Tessellation(Enum):
     """Tessellation quality levels for mesh export"""
     COARSE = 0.5

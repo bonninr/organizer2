@@ -30,7 +30,7 @@ import console_bench
 import console_pedalboard
 
 # Import exporters and viewer
-from file_exporters import generate_temp_file, generate_temp_csv, generate_temp_dxf, Tessellation
+from file_exporters import generate_temp_file, generate_temp_csv, generate_temp_dxf, Tessellation, prepare_gltf_for_download
 from threejs_viewer import create_threejs_gltf_viewer, find_wood_texture
 from technical_drawing import create_a3_technical_drawing, generate_technical_drawing_cached
 
@@ -1173,14 +1173,15 @@ def main():
 
     with download_col1:
         try:
-            with open(file_path_gltf, 'rb') as gltf_file:
-                st.download_button(
-                    label="Download GLTF",
-                    data=gltf_file,
-                    file_name=f"organ_console_{console_type}.gltf",
-                    mime="model/gltf+json",
-                    help="3D model for web viewers"
-                )
+            # Embed binary data into GLTF so it's self-contained
+            gltf_data = prepare_gltf_for_download(file_path_gltf)
+            st.download_button(
+                label="Download GLTF",
+                data=gltf_data,
+                file_name=f"organ_console_{console_type}.gltf",
+                mime="model/gltf+json",
+                help="3D model for web viewers"
+            )
         except:
             st.error("GLTF file not available")
 
