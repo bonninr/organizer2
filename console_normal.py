@@ -232,7 +232,7 @@ def generate_console(parameters):
         max_width=p.organ_internal_width_g,
         max_height=p.top_depth_g,
         board_thickness=p.general_board_thickness_g,
-        position=(-p.general_board_thickness_g, p.general_board_thickness_g, p.base_height_g),
+        position=(-p.general_board_thickness_g, p.general_board_thickness_g, p.base_height_g + p.general_board_thickness_g),
         rotation=(0, 90, 90),
         show_dimensions=show_dims
     ))
@@ -286,7 +286,7 @@ def generate_console(parameters):
         max_width=p.organ_internal_width_g,
         max_height=p.base_depth_g,
         board_thickness=p.general_board_thickness_g,
-        position=(-p.general_board_thickness_g, 0, p.base_height_g + p.top_height_g - p.general_board_thickness_g),
+        position=(-p.general_board_thickness_g, 0, p.base_height_g + p.top_height_g),
         rotation=(0, 90, 90),
         show_dimensions=show_dims
     ))
@@ -311,7 +311,7 @@ def generate_console(parameters):
         kbd_depth = kbd_dims['depth']
 
         # Position keyboards centered on the console, on top of the horizontal divider
-        # The horizontal divider is at Z = base_height_g, with thickness general_board_thickness_g
+        # The horizontal divider top surface is at Z = base_height_g + general_board_thickness_g
         # Keyboards sit on top at Z = base_height_g + general_board_thickness_g
         #
         # Console X runs from -general_board_thickness to -(organ_internal_width + 2*general_board_thickness)
