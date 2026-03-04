@@ -276,7 +276,7 @@ def generate_console(parameters):
         max_width=p.organ_internal_width_g,
         max_height=p.top_height_g - 2 * p.general_board_thickness_g,
         board_thickness=p.general_board_thickness_g,
-        position=(-p.general_board_thickness_g, p.base_depth_g, p.base_height_g + p.general_board_thickness_g),
+        position=(-p.general_board_thickness_g, p.base_depth_g - p.general_board_thickness_g, p.base_height_g + p.general_board_thickness_g),
         rotation=(0, 0, 90),
         show_dimensions=show_dims
     ))
