@@ -256,24 +256,6 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                 border-radius: 8px;
                 margin: 20px;
             }}
-            .export-btn {{
-                width: 100%;
-                padding: 8px 12px;
-                margin-top: 10px;
-                background: #4a7c59;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 0.9em;
-                font-weight: bold;
-            }}
-            .export-btn:hover {{
-                background: #5a9c69;
-            }}
-            .export-btn:active {{
-                background: #3a6c49;
-            }}
         </style>
     </head>
     <body>
@@ -294,7 +276,6 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                         <option value="fallback">Warm Oak (Fallback)</option>
                     </select>
                 </div>
-                <button id="exportSceneBtn" class="export-btn">Export Scene JSON</button>
             </div>
             
             <div class="controls">
@@ -1005,7 +986,7 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                 renderer.domElement.addEventListener('touchstart', stopAutoRotateOnInteraction);
             }}
 
-            // Export scene as JSON
+            // (Export scene as JSON removed)
             function exportSceneAsJSON() {{
                 console.log('Exporting scene as JSON...');
 
@@ -1135,8 +1116,6 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                 console.log('Scene exported successfully!');
             }}
 
-            // Add export button click handler
-            document.getElementById('exportSceneBtn').addEventListener('click', exportSceneAsJSON);
 
             // Animation loop
             function animate() {{

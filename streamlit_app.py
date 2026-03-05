@@ -104,6 +104,17 @@ def main():
             help="Select the type of organ console to design"
         )
 
+        # COMBINED VIEW (only for normal/vertical consoles)
+        if console_type in ["normal", "vertical"]:
+            col_b, col_p = st.columns(2)
+            with col_b:
+                show_bench = st.checkbox("+ Bench", value=False, help="Show bench alongside the console")
+            with col_p:
+                show_pedalboard = st.checkbox("+ Pedalboard", value=False, help="Show pedalboard alongside the console")
+        else:
+            show_bench = False
+            show_pedalboard = False
+
         st.divider()
 
         # PARAMETERS SECTION
@@ -851,16 +862,6 @@ def main():
                     help="Extrude dimension text (WxHxT) on all board surfaces"
                 )
 
-        # COMBINED VIEW (only for normal/vertical consoles)
-        if console_type in ["normal", "vertical"]:
-            st.divider()
-            st.subheader("Combined View")
-            show_bench = st.checkbox("Show Bench", value=False, help="Show bench alongside the console")
-            show_pedalboard = st.checkbox("Show Pedalboard", value=False, help="Show pedalboard alongside the console")
-        else:
-            show_bench = False
-            show_pedalboard = False
-
         # EXPORT SETTINGS
         st.divider()
         with st.expander("Export Settings", expanded=False):
@@ -1101,7 +1102,7 @@ def main():
                     )
                     bench_model = console_bench.generate_console(bench_params)
                     bench_gltf = generate_temp_file(bench_model, "gltf", quality_value)
-                    combined_extra_models.append({"gltf_path": bench_gltf, "offset_z": -2.0, "rotate_y": 3.14159})
+                    combined_extra_models.append({"gltf_path": bench_gltf, "offset_z": -3.0, "rotate_y": 3.14159})
                 except Exception as e:
                     st.warning(f"Could not generate bench for combined view: {e}")
 
@@ -1112,7 +1113,7 @@ def main():
                     )
                     pedal_model = console_pedalboard.generate_console(pedal_params)
                     pedal_gltf = generate_temp_file(pedal_model, "gltf", quality_value)
-                    combined_extra_models.append({"gltf_path": pedal_gltf, "offset_z": 3.5})
+                    combined_extra_models.append({"gltf_path": pedal_gltf, "offset_z": 3.5, "rotate_y": 3.14159})
                 except Exception as e:
                     st.warning(f"Could not generate pedalboard for combined view: {e}")
 
