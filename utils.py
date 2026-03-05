@@ -136,21 +136,18 @@ def create_board(max_width, max_height, board_thickness, position, rotation,
         x_offset = -max_width / 2
         y_offset = -max_height / 2
 
-        # Add rectangular holes
-        for hole in rectangular_holes:
-            x, y, hole_width, hole_height = hole
-            # Create hole on the top face
-            with BuildSketch(board_builder.faces().sort_by(Axis.X)[-1]) as hole_sketch:
-                with Locations((x + x_offset, y + y_offset)):
-                    Rectangle(hole_width, hole_height)
-            extrude(amount=-board_thickness, mode=Mode.SUBTRACT)
-
-        # Add circular holes
-        for hole in circular_holes:
-            x, y, diameter = hole
-            with BuildSketch(board_builder.faces().sort_by(Axis.X)[-1]) as hole_sketch:
-                with Locations((x + x_offset, y + y_offset)):
-                    Circle(diameter / 2)
+        # Batch all holes into a single sketch + one boolean subtract
+        if rectangular_holes or circular_holes:
+            top_face = board_builder.faces().sort_by(Axis.X)[-1]
+            with BuildSketch(top_face):
+                for hole in rectangular_holes:
+                    x, y, hole_width, hole_height = hole
+                    with Locations((x + x_offset, y + y_offset)):
+                        Rectangle(hole_width, hole_height)
+                for hole in circular_holes:
+                    x, y, diameter = hole
+                    with Locations((x + x_offset, y + y_offset)):
+                        Circle(diameter / 2)
             extrude(amount=-board_thickness, mode=Mode.SUBTRACT)
 
         # Add dimension text if requested
