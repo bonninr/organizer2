@@ -661,11 +661,11 @@ def main():
                 )
 
                 inline_console_depth = st.slider(
-                    'Console Depth (mm)',
-                    min_value=350, max_value=800,
+                    'Cabinet Body Depth (mm)',
+                    min_value=200, max_value=600,
                     value=default_params["General_and_base"][3]["console_depth_g"],
                     step=25,
-                    help="Full front-to-back depth of the console"
+                    help="Depth of the cabinet body (side panels, back, front panel). The keyboard table extends further."
                 )
 
                 base_front_distance = st.slider(
@@ -682,7 +682,21 @@ def main():
                     min_value=500, max_value=900,
                     value=default_params["Table"][0]["table_height_g"],
                     step=10,
-                    help="Height of the keyboard table top surface. Center board width is auto-calculated from keyboard width."
+                    help="Height of the keyboard table top surface"
+                )
+
+                inline_table_depth = st.slider(
+                    'Table Depth (mm)',
+                    min_value=400, max_value=900,
+                    value=default_params["Table"][1]["table_depth_g"],
+                    step=25,
+                    help="Total front-to-back depth of the keyboard table (extends beyond console body depth)"
+                )
+
+                inline_table_fill_extend = st.checkbox(
+                    'Fill boards full depth (notch mode)',
+                    value=bool(default_params["Table"][2]["table_fill_extend_g"]),
+                    help="If checked, fill boards extend the full table depth; otherwise only the extension region (~table depth minus console depth)"
                 )
 
             with st.expander("Volume Pedals", expanded=False):
@@ -1101,7 +1115,9 @@ def main():
                 {"base_front_distance_g": base_front_distance}
             ],
             "Table": [
-                {"table_height_g": inline_table_height}
+                {"table_height_g": inline_table_height},
+                {"table_depth_g": inline_table_depth},
+                {"table_fill_extend_g": inline_table_fill_extend}
             ],
             "Volume_pedals": [
                 {"volume_pedals_width_g": volume_pedals_width},
