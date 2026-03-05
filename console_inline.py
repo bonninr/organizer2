@@ -3,11 +3,15 @@ Inline Console Generator - build123d Version
 
 Simple line-style organ console with:
 - Single tall side panels (full height and depth)
-- Center keyboard table board + staircase cheek boards on each side
-  The cheek boards are horizontal, one per keyboard manual level.
-  Each board's depth goes from the back wall to the key tip of that manual.
-  Lower manuals are more forward so their cheek boards are longer;
-  upper manuals step back so their cheek boards are shorter.
+- Three-board keyboard table at table_height_g:
+    1. Center support board: exactly as wide as the keyboard stack
+    2. Left fill board: fills from center board to left side panel
+    3. Right fill board: fills from center board to right side panel
+- Staircase cheek boards: piled horizontally on the fill-board areas.
+  Each level is one board_thickness higher and its depth shortens by
+  keyboard_depth_offset_g, so the front edge aligns with the key tip
+  of the corresponding manual. Lower boards are longer (manual 1 =
+  full depth), upper boards progressively shorter.
 - Volume pedals behind a front panel
 - Multiple keyboard manuals
 
@@ -40,8 +44,7 @@ def get_default_parameters():
             {"base_front_distance_g": 10}
         ],
         "Table": [
-            {"table_height_g": 720},
-            {"keyboard_section_width_g": 900}
+            {"table_height_g": 720}
         ],
         "Volume_pedals": [
             {"volume_pedals_width_g": 120},
@@ -80,8 +83,12 @@ def generate_board_list(parameters):
     """
     p = DotDict(parameters)
 
-    lateral_width = (p.organ_internal_width_g - p.keyboard_section_width_g) / 2
-    inner_depth = p.console_depth_g - p.general_board_thickness_g
+    kbd_dims = get_keyboard_dimensions(parameters)
+    kbd_width = kbd_dims['width']
+
+    bt = p.general_board_thickness_g
+    fill_width = (p.organ_internal_width_g - kbd_width) / 2
+    inner_depth = p.console_depth_g - bt
     num_manuals = int(getattr(p, 'keyboard_num_manuals_g', 2))
     depth_offset = getattr(p, 'keyboard_depth_offset_g', 130)
 
@@ -90,42 +97,42 @@ def generate_board_list(parameters):
             "name": "Left Side Panel",
             "width": p.console_depth_g,
             "height": p.total_height_g,
-            "thickness": p.general_board_thickness_g,
+            "thickness": bt,
             "description": "Left side panel, full height and depth"
         },
         {
             "name": "Right Side Panel",
             "width": p.console_depth_g,
             "height": p.total_height_g,
-            "thickness": p.general_board_thickness_g,
+            "thickness": bt,
             "description": "Right side panel, full height and depth"
         },
         {
             "name": "Back Panel",
             "width": p.organ_internal_width_g,
             "height": p.total_height_g,
-            "thickness": p.general_board_thickness_g,
+            "thickness": bt,
             "description": "Back panel, full width and height"
         },
         {
             "name": "Top Lid",
             "width": p.organ_internal_width_g,
             "height": inner_depth,
-            "thickness": p.general_board_thickness_g,
+            "thickness": bt,
             "description": "Top lid"
         },
         {
-            "name": "Center Table Board",
-            "width": p.keyboard_section_width_g,
+            "name": "Center Keyboard Support Board",
+            "width": kbd_width,
             "height": inner_depth,
-            "thickness": p.general_board_thickness_g,
-            "description": "Horizontal board under keyboard area"
+            "thickness": bt,
+            "description": "Horizontal board directly under keyboard, just wide enough for keys"
         },
         {
             "name": "Front Panel",
             "width": p.organ_internal_width_g,
             "height": p.table_height_g,
-            "thickness": p.general_board_thickness_g,
+            "thickness": bt,
             "description": "Front panel with volume pedal hole",
             "rectangular_holes": [[
                 p.organ_internal_width_g / 2,
@@ -138,33 +145,34 @@ def generate_board_list(parameters):
             "name": "Volume Pedals",
             "width": p.volume_pedals_width_g,
             "height": p.volume_pedals_height_g,
-            "thickness": p.general_board_thickness_g,
+            "thickness": bt,
             "description": f"Volume pedals (quantity: {p.volume_pedals_number_g})"
         }
     ]
 
-    # Staircase cheek boards: one pair per manual level
-    # The N-th board (0-indexed) has depth = inner_depth - N * depth_offset
-    # Lower manual (N=0): longest. Upper manuals: progressively shorter.
-    num_cheek_levels = max(1, num_manuals)
-    for n in range(num_cheek_levels):
-        cheek_depth = inner_depth - n * depth_offset
-        if cheek_depth <= 0:
+    # Fill boards (n=0) + stacked staircase boards (n=1..N-1).
+    # Board n sits at the lateral area, has depth = inner_depth - n * depth_offset.
+    # n=0 is the lateral fill board at table level (full inner depth).
+    # n=1 is stacked one board_thickness higher, reaching manual 2 key tip. Etc.
+    num_levels = max(1, num_manuals)
+    for n in range(num_levels):
+        depth = inner_depth - n * depth_offset
+        if depth <= 0:
             break
-        level_label = f"(manual {n + 1})" if num_manuals > 0 else "(table level)"
+        label = "fill board (table level)" if n == 0 else f"staircase step {n} (manual {n + 1} key tip)"
         board_list.append({
-            "name": f"Left Lateral/Cheek Board {n + 1}",
-            "width": lateral_width,
-            "height": cheek_depth,
-            "thickness": p.general_board_thickness_g,
-            "description": f"Left staircase cheek board {level_label}, depth to key tip"
+            "name": f"Left Lateral Board {n + 1}",
+            "width": fill_width,
+            "height": depth,
+            "thickness": bt,
+            "description": f"Left {label}"
         })
         board_list.append({
-            "name": f"Right Lateral/Cheek Board {n + 1}",
-            "width": lateral_width,
-            "height": cheek_depth,
-            "thickness": p.general_board_thickness_g,
-            "description": f"Right staircase cheek board {level_label}, depth to key tip"
+            "name": f"Right Lateral Board {n + 1}",
+            "width": fill_width,
+            "height": depth,
+            "thickness": bt,
+            "description": f"Right {label}"
         })
 
     return board_list
@@ -185,12 +193,17 @@ def generate_console(parameters):
     show_dims = getattr(p, 'show_dimensions_g', False)
     num_manuals = int(getattr(p, 'keyboard_num_manuals_g', 2))
     depth_offset = getattr(p, 'keyboard_depth_offset_g', 130)
-    vertical_spacing = getattr(p, 'keyboard_vertical_spacing_g', 80)
     keyboard_y_offset = getattr(p, 'keyboard_y_offset_g', 0)
 
     bt = p.general_board_thickness_g
-    lateral_width = (p.organ_internal_width_g - p.keyboard_section_width_g) / 2
     inner_depth = p.console_depth_g - bt
+
+    # Keyboard dimensions drive the center board width
+    kbd_dims = get_keyboard_dimensions(parameters)
+    kbd_width = kbd_dims['width']
+    kbd_depth = kbd_dims['depth']
+
+    fill_width = (p.organ_internal_width_g - kbd_width) / 2
 
     parts = []
 
@@ -236,50 +249,46 @@ def generate_console(parameters):
         show_dimensions=show_dims
     ))
 
-    # --- Keyboard table area ---
+    # --- Three-board keyboard table ---
 
-    # Center table board (horizontal at table_height, under keyboards and between cheeks)
+    # Center keyboard support board (exactly keyboard-wide, full inner depth)
+    # X spans: [-bt - fill_width - kbd_width, -bt - fill_width]
     parts.append(create_board(
-        max_width=p.keyboard_section_width_g,
+        max_width=kbd_width,
         max_height=inner_depth,
         board_thickness=bt,
-        position=(-bt - lateral_width, bt, p.table_height_g),
+        position=(-bt - fill_width, bt, p.table_height_g),
         rotation=(0, 90, 90),
         show_dimensions=show_dims
     ))
 
-    # Staircase cheek boards on each side.
-    # For each keyboard level N (0-indexed):
-    #   - Height (Z) = table_height_g + N * vertical_spacing_g
-    #   - Depth (Y) = inner_depth - N * depth_offset_g
-    #     (the board reaches from back wall to the key tip of manual N+1)
-    # Board 0 serves as the lateral table board (at table level, full inner depth).
-    # Boards 1..N-1 are the stepped cheek boards above.
-    num_cheek_levels = max(1, num_manuals)
-    for n in range(num_cheek_levels):
+    # Staircase fill/cheek boards on each side.
+    # n=0: lateral fill board at table level, depth = inner_depth (reaches manual 1 key tip = console front).
+    # n=1..N-1: stacked one board_thickness per level, depth shortens by depth_offset per level
+    #           so the front edge aligns with the corresponding manual's key tip.
+    num_levels = max(1, num_manuals)
+    for n in range(num_levels):
         cheek_depth = inner_depth - n * depth_offset
         if cheek_depth <= 0:
             break
-        z_level = p.table_height_g + n * vertical_spacing
+        z = p.table_height_g + n * bt  # stacked: each level sits on top of the previous
 
-        # Right lateral/cheek board
-        # X spans: [-bt - lateral_width, -bt]
+        # Right lateral/cheek board: X spans [-bt - fill_width, -bt]
         parts.append(create_board(
-            max_width=lateral_width,
+            max_width=fill_width,
             max_height=cheek_depth,
             board_thickness=bt,
-            position=(-bt, bt, z_level),
+            position=(-bt, bt, z),
             rotation=(0, 90, 90),
             show_dimensions=show_dims
         ))
 
-        # Left lateral/cheek board
-        # X spans: [-bt - lateral_width - keyboard_section_width - lateral_width, -bt - lateral_width - keyboard_section_width]
+        # Left lateral/cheek board: X spans [-bt - fill_width - kbd_width - fill_width, -bt - fill_width - kbd_width]
         parts.append(create_board(
-            max_width=lateral_width,
+            max_width=fill_width,
             max_height=cheek_depth,
             board_thickness=bt,
-            position=(-bt - lateral_width - p.keyboard_section_width_g, bt, z_level),
+            position=(-bt - fill_width - kbd_width, bt, z),
             rotation=(0, 90, 90),
             show_dimensions=show_dims
         ))
@@ -303,8 +312,7 @@ def generate_console(parameters):
 
     # --- Volume pedals ---
     pedal_x_center = -bt - p.organ_internal_width_g / 2
-    pedal_x_span = (p.volume_pedals_number_g * (p.volume_pedals_width_g + p.volume_pedals_spacing_g)
-                    + p.volume_pedals_spacing_g) / 2
+    pedal_x_span = pedal_hole_w / 2
 
     for i in range(p.volume_pedals_number_g):
         pedal_x = (pedal_x_center + pedal_x_span
@@ -322,20 +330,14 @@ def generate_console(parameters):
         ))
 
     # --- Keyboards ---
+    # Center the keyboard stack over the center support board.
+    # Center of organ in X = -bt - organ_internal_width/2 (same as normal console).
     if num_manuals > 0:
-        kbd_dims = get_keyboard_dimensions(parameters)
-        kbd_width = kbd_dims['width']
-        kbd_depth = kbd_dims['depth']
-
-        # Center keyboards in the keyboard section (X), front at console front (Y),
-        # sitting on top of the center table board (Z = table_height_g)
-        kbd_section_center_x = -bt - lateral_width - p.keyboard_section_width_g / 2
         keyboard_position = (
-            kbd_section_center_x - kbd_width / 2,
+            -bt - p.organ_internal_width_g / 2 - kbd_width / 2,
             p.console_depth_g - kbd_depth + keyboard_y_offset,
             p.table_height_g
         )
-
         keyboard_stack = generate_keyboard_stack(parameters, base_position=keyboard_position)
         parts.append(keyboard_stack)
 

@@ -682,15 +682,7 @@ def main():
                     min_value=500, max_value=900,
                     value=default_params["Table"][0]["table_height_g"],
                     step=10,
-                    help="Height of the keyboard table top surface"
-                )
-
-                inline_keyboard_section_width = st.slider(
-                    'Keyboard Section Width (mm)',
-                    min_value=500, max_value=1400,
-                    value=default_params["Table"][1]["keyboard_section_width_g"],
-                    step=25,
-                    help="Width of the center keyboard area (lateral boards fill the rest)"
+                    help="Height of the keyboard table top surface. Center board width is auto-calculated from keyboard width."
                 )
 
             with st.expander("Volume Pedals", expanded=False):
@@ -1109,8 +1101,7 @@ def main():
                 {"base_front_distance_g": base_front_distance}
             ],
             "Table": [
-                {"table_height_g": inline_table_height},
-                {"keyboard_section_width_g": inline_keyboard_section_width}
+                {"table_height_g": inline_table_height}
             ],
             "Volume_pedals": [
                 {"volume_pedals_width_g": volume_pedals_width},
