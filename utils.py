@@ -48,7 +48,8 @@ class DotDict:
 
 
 def create_board(max_width, max_height, board_thickness, position, rotation,
-                min_width=0, min_height=0, rectangular_holes=[], circular_holes=[], show_dimensions=False):
+                min_width=0, min_height=0, rectangular_holes=[], circular_holes=[],
+                show_dimensions=False, material=None):
     """
     Create a board with optional slanted edges and holes using build123d.
 
@@ -67,6 +68,10 @@ def create_board(max_width, max_height, board_thickness, position, rotation,
         rectangular_holes: List of [x, y, width, height] for rectangular holes
         circular_holes: List of [x, y, diameter] for circular holes
         show_dimensions: If True, extrude dimension text on the board surface
+        material: Material name string (e.g., "black", "white", "metal").
+                  If specified, this will be stored as the part's label and used
+                  by the Three.js viewer to apply appropriate material instead of wood.
+                  Supported values: "black", "white", "metal", "dark_wood"
 
     Returns:
         Part object representing the board
@@ -91,6 +96,16 @@ def create_board(max_width, max_height, board_thickness, position, rotation,
             position=(0, 0, 0),
             rotation=(0, 0, 0),
             rectangular_holes=[[250, 150, 100, 50]]
+        )
+
+        # Black material board (e.g., for sharp pedal caps)
+        board = create_board(
+            max_width=100,
+            max_height=50,
+            board_thickness=25,
+            position=(0, 0, 0),
+            rotation=(0, 0, 0),
+            material="black"
         )
     """
     # Set the min height equal to max height if it's zero (for full rectangle)
@@ -164,6 +179,10 @@ def create_board(max_width, max_height, board_thickness, position, rotation,
 
     # Apply translation
     board = Pos(position[0], position[1], position[2]) * board
+
+    # Set material label if specified (used by Three.js viewer for material selection)
+    if material:
+        board.label = f"material:{material}"
 
     return board
 

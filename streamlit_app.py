@@ -1036,6 +1036,9 @@ def main():
             ]
         }
 
+    # Persist parameters in session state so combined view can use last-configured values
+    st.session_state[f'last_params_{console_type}'] = parameters
+
     # VISUALIZATION SECTION
     console_names = {"normal": "Normal", "vertical": "Vertical", "bench": "Bench", "pedalboard": "Pedalboard"}
     st.header(f"{console_names[console_type]} Console Preview")
@@ -1093,14 +1096,10 @@ def main():
 
             if show_bench:
                 try:
-                    bench_defaults = console_bench.get_default_parameters()
-                    for section in bench_defaults.values():
-                        for p in section:
-                            if "organ_internal_width_g" in p:
-                                p["organ_internal_width_g"] = organ_internal_width
-                            if "general_board_thickness_g" in p:
-                                p["general_board_thickness_g"] = general_board_thickness
-                    bench_model = console_bench.generate_console(bench_defaults)
+                    bench_params = st.session_state.get(
+                        'last_params_bench', console_bench.get_default_parameters()
+                    )
+                    bench_model = console_bench.generate_console(bench_params)
                     bench_gltf = generate_temp_file(bench_model, "gltf", quality_value)
                     combined_extra_models.append({"gltf_path": bench_gltf, "offset_z": -2.0, "rotate_y": 3.14159})
                 except Exception as e:
@@ -1108,8 +1107,10 @@ def main():
 
             if show_pedalboard:
                 try:
-                    pedal_defaults = console_pedalboard.get_default_parameters()
-                    pedal_model = console_pedalboard.generate_console(pedal_defaults)
+                    pedal_params = st.session_state.get(
+                        'last_params_pedalboard', console_pedalboard.get_default_parameters()
+                    )
+                    pedal_model = console_pedalboard.generate_console(pedal_params)
                     pedal_gltf = generate_temp_file(pedal_model, "gltf", quality_value)
                     combined_extra_models.append({"gltf_path": pedal_gltf, "offset_z": 3.5})
                 except Exception as e:
