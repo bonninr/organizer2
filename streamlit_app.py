@@ -851,6 +851,16 @@ def main():
                     help="Extrude dimension text (WxHxT) on all board surfaces"
                 )
 
+        # COMBINED VIEW (only for normal/vertical consoles)
+        if console_type in ["normal", "vertical"]:
+            st.divider()
+            st.subheader("Combined View")
+            show_bench = st.checkbox("Show Bench", value=False, help="Show bench alongside the console")
+            show_pedalboard = st.checkbox("Show Pedalboard", value=False, help="Show pedalboard alongside the console")
+        else:
+            show_bench = False
+            show_pedalboard = False
+
         # EXPORT SETTINGS
         st.divider()
         with st.expander("Export Settings", expanded=False):
@@ -1078,11 +1088,53 @@ def main():
             # Find wood texture for Three.js viewer
             wood_texture_path = find_wood_texture()
 
+            # Build extra models list for combined view
+            combined_extra_models = []
+
+            if show_bench:
+                try:
+                    bench_defaults = console_bench.get_default_parameters()
+                    # Override shared dimensions to match current console
+                    for section in bench_defaults.values():
+                        for p in section:
+                            if "organ_internal_width_g" in p:
+                                p["organ_internal_width_g"] = organ_internal_width
+                            if "general_board_thickness_g" in p:
+                                p["general_board_thickness_g"] = general_board_thickness
+                    bench_gltf, _, _ = generate_and_export_console_cached(
+                        console_type="bench",
+                        parameters_dict=bench_defaults,
+                        file_format="gltf",
+                        tessellation=quality_value
+                    )
+                    combined_extra_models.append({"gltf_path": bench_gltf, "offset_y": base_depth})
+                except Exception as e:
+                    st.warning(f"Could not generate bench for combined view: {e}")
+
+            if show_pedalboard:
+                try:
+                    pedal_defaults = console_pedalboard.get_default_parameters()
+                    # Override shared dimensions to match current console
+                    for section in pedal_defaults.values():
+                        for p in section:
+                            if "general_board_thickness_g" in p:
+                                p["general_board_thickness_g"] = general_board_thickness
+                    pedal_gltf, _, _ = generate_and_export_console_cached(
+                        console_type="pedalboard",
+                        parameters_dict=pedal_defaults,
+                        file_format="gltf",
+                        tessellation=quality_value
+                    )
+                    combined_extra_models.append({"gltf_path": pedal_gltf, "offset_y": 0})
+                except Exception as e:
+                    st.warning(f"Could not generate pedalboard for combined view: {e}")
+
             # Create and display Three.js viewer
             viewer_html = create_threejs_gltf_viewer(
                 gltf_file_path=file_path_gltf,
                 wood_texture_path=wood_texture_path,
-                height=600
+                height=600,
+                extra_models=combined_extra_models if combined_extra_models else None
             )
 
             # Display the Three.js viewer

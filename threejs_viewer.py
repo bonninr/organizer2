@@ -117,7 +117,7 @@ def get_wood_texture_base64(wood_texture_path):
         return None
 
 
-def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=500):
+def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=500, extra_models=None):
     """
     Create a Three.js GLTF viewer with lacquered wood material and wood type selector.
     
@@ -153,7 +153,27 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
     # Convert the modified GLTF JSON to base64
     gltf_json_str = json.dumps(gltf_json)
     gltf_base64 = base64.b64encode(gltf_json_str.encode('utf-8')).decode('utf-8')
-    
+
+    # Process extra models for combined view
+    extra_model_calls = ""
+    if extra_models:
+        for em in extra_models:
+            em_path = em['gltf_path']
+            with open(em_path, 'r') as f:
+                em_json = json.load(f)
+            em_dir = os.path.dirname(em_path)
+            if 'buffers' in em_json:
+                for buf in em_json['buffers']:
+                    if 'uri' in buf and buf['uri'].endswith('.bin'):
+                        bin_path = os.path.join(em_dir, buf['uri'])
+                        if os.path.exists(bin_path):
+                            with open(bin_path, 'rb') as bf:
+                                bd = bf.read()
+                            buf['uri'] = f"data:application/octet-stream;base64,{base64.b64encode(bd).decode()}"
+            em_b64 = base64.b64encode(json.dumps(em_json).encode()).decode()
+            em_offset = em.get('offset_y', 0)
+            extra_model_calls += f'\n                loadExtraModel("{em_b64}", {em_offset});'
+
     # Handle local wood texture - get as base64
     wood_texture_uri = get_wood_texture_base64(wood_texture_path)
     
@@ -235,6 +255,24 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                 border-radius: 8px;
                 margin: 20px;
             }}
+            .export-btn {{
+                width: 100%;
+                padding: 8px 12px;
+                margin-top: 10px;
+                background: #4a7c59;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 0.9em;
+                font-weight: bold;
+            }}
+            .export-btn:hover {{
+                background: #5a9c69;
+            }}
+            .export-btn:active {{
+                background: #3a6c49;
+            }}
         </style>
     </head>
     <body>
@@ -255,6 +293,7 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                         <option value="fallback">Warm Oak (Fallback)</option>
                     </select>
                 </div>
+                <button id="exportSceneBtn" class="export-btn">Export Scene JSON</button>
             </div>
             
             <div class="controls">
@@ -463,7 +502,10 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
 
             // Global variables for model texture management
             let currentModel = null;
-            let modelMaterials = []; 
+            let modelMaterials = [];
+            let mainModelScale = 1;
+            const mainCenterOffset = new THREE.Vector3();
+            const extraModelsList = [];
 
             // Create fallback wood material (warm oak color)
             function createWoodMaterial(textureUrl = null) {{
@@ -614,6 +656,45 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                 }});
             }}
 
+            // Load an extra model at a Y offset (build123d mm, maps to Three.js -Z)
+            function loadExtraModel(gltfBase64, offsetY) {{
+                const extraLoader = new THREE.GLTFLoader();
+                try {{
+                    const binStr = atob(gltfBase64);
+                    const bytes = new Uint8Array(binStr.length);
+                    for (let i = 0; i < binStr.length; i++) bytes[i] = binStr.charCodeAt(i);
+                    const blob = new Blob([bytes], {{ type: 'model/gltf+json' }});
+                    const url = URL.createObjectURL(blob);
+                    extraLoader.load(url, function(gltf) {{
+                        const extraModel = gltf.scene;
+                        extraModel.scale.setScalar(mainModelScale);
+                        extraModel.position.copy(mainCenterOffset);
+                        extraModel.position.z += -offsetY * mainModelScale;
+                        scene.add(extraModel);
+                        extraModelsList.push(extraModel);
+                        URL.revokeObjectURL(url);
+                        // Apply wood texture
+                        const initTexUrl = woodTextures.local && woodTextures.local !== ''
+                            ? woodTextures.local
+                            : 'https://threejs.org/examples/textures/hardwood2_diffuse.jpg';
+                        textureLoader.load(initTexUrl, function(tex) {{
+                            tex.wrapS = THREE.RepeatWrapping;
+                            tex.wrapT = THREE.RepeatWrapping;
+                            tex.repeat.set(2, 2);
+                            tex.anisotropy = 4;
+                            applyTextureToModel(extraModel, tex);
+                        }}, undefined, function() {{
+                            applyTextureToModel(extraModel, null);
+                        }});
+                        console.log('✅ Extra model loaded, Z offset:', (-offsetY * mainModelScale).toFixed(3));
+                    }}, undefined, function(err) {{
+                        console.error('❌ Extra model load failed:', err);
+                    }});
+                }} catch(e) {{
+                    console.error('❌ Extra model processing failed:', e);
+                }}
+            }}
+
             // Load GLTF model
             const loader = new THREE.GLTFLoader();
 
@@ -641,9 +722,11 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                         
                         const maxDim = Math.max(size.x, size.y, size.z);
                         const scale = 4 / maxDim;
+                        mainModelScale = scale;
                         currentModel.scale.setScalar(scale);
                         currentModel.position.sub(center.multiplyScalar(scale));
                         currentModel.position.y = 0;
+                        mainCenterOffset.copy(currentModel.position);
                         
                         // Apply initial wood texture using your recommended approach
                         const initialTextureUrl = woodTextures.local && woodTextures.local !== '' 
@@ -813,8 +896,11 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                         
                         // Clean up blob URL
                         URL.revokeObjectURL(gltfUrl);
-                        
+
                         setupControls();
+
+                        // Load extra models for combined view
+                        {extra_model_calls}
                     }},
                     function(xhr) {{
                         const percent = (xhr.loaded / xhr.total * 100).toFixed(0);
@@ -854,24 +940,26 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                     if (selectedTexture === 'fallback') {{
                         // Apply fallback material without texture
                         applyTextureToModel(currentModel, null);
+                        extraModelsList.forEach(function(em) {{ applyTextureToModel(em, null); }});
                     }} else {{
                         const textureUrl = woodTextures[selectedTexture];
-                        
+
                         // Load new texture and apply
                         textureLoader.load(textureUrl, function(newTexture) {{
                             newTexture.wrapS = THREE.RepeatWrapping;
                             newTexture.wrapT = THREE.RepeatWrapping;
                             newTexture.repeat.set(2, 2);
                             newTexture.anisotropy = 4;
-                            
-                            // Apply texture to model using proper approach
+
+                            // Apply texture to all models
                             applyTextureToModel(currentModel, newTexture);
-                            
+                            extraModelsList.forEach(function(em) {{ applyTextureToModel(em, newTexture); }});
+
                             console.log('🎨 Wood texture changed to:', selectedTexture);
                         }}, undefined, function(error) {{
                             console.warn('❌ Failed to load texture:', textureUrl, error);
-                            // Apply fallback if texture loading fails
                             applyTextureToModel(currentModel, null);
+                            extraModelsList.forEach(function(em) {{ applyTextureToModel(em, null); }});
                         }});
                     }}
                 }});
@@ -910,6 +998,139 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                 renderer.domElement.addEventListener('mousedown', stopAutoRotateOnInteraction);
                 renderer.domElement.addEventListener('touchstart', stopAutoRotateOnInteraction);
             }}
+
+            // Export scene as JSON
+            function exportSceneAsJSON() {{
+                console.log('Exporting scene as JSON...');
+
+                // Helper to convert texture to base64 (returns null if CORS blocks it)
+                function textureToBase64(texture) {{
+                    if (!texture || !texture.image) return null;
+                    try {{
+                        const canvas = document.createElement('canvas');
+                        canvas.width = texture.image.width || 512;
+                        canvas.height = texture.image.height || 512;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(texture.image, 0, 0, canvas.width, canvas.height);
+                        return canvas.toDataURL('image/jpeg', 0.85);
+                    }} catch (e) {{
+                        console.warn('CORS blocked texture export:', e.message);
+                        return null;
+                    }}
+                }}
+
+                // Warm oak fallback color for wood materials
+                const WOOD_COLOR = '#A0722A';
+                const SPECIAL_MATERIALS = {{
+                    'black': '#1a1a1a',
+                    'white': '#f5f5f0',
+                    'metal': '#888888',
+                    'dark_wood': '#3d2817',
+                    'ebony': '#1c1c1c'
+                }};
+
+                // Collect material data for meshes (MeshPhysicalMaterial doesn't serialize well)
+                // Use array to handle multiple meshes, match by name on load
+                const materialOverrides = [];
+                let meshIndex = 0;
+
+                scene.traverse((obj) => {{
+                    if (obj.isMesh && obj.material) {{
+                        const mat = obj.material;
+                        const name = obj.name || '';
+
+                        // Determine the correct color
+                        let color = mat.color ? '#' + mat.color.getHexString() : WOOD_COLOR;
+
+                        // Check for special material names
+                        let isSpecialMaterial = false;
+                        for (const [key, specialColor] of Object.entries(SPECIAL_MATERIALS)) {{
+                            if (name.toLowerCase().includes('material:' + key)) {{
+                                color = specialColor;
+                                isSpecialMaterial = true;
+                                break;
+                            }}
+                        }}
+
+                        // If color is white/near-white and not special, it's wood expecting a texture
+                        if (!isSpecialMaterial && (color === '#ffffff' || color === '#fefefe')) {{
+                            color = WOOD_COLOR;
+                        }}
+
+                        // Try to capture texture
+                        let textureData = null;
+                        if (mat.map) {{
+                            textureData = textureToBase64(mat.map);
+                        }}
+
+                        // Store material properties with index for matching
+                        materialOverrides.push({{
+                            index: meshIndex++,
+                            name: name,
+                            type: mat.type,
+                            color: color,
+                            texture: textureData,
+                            metalness: mat.metalness ?? 0,
+                            roughness: mat.roughness ?? 0.3,
+                            clearcoat: mat.clearcoat ?? 0.8,
+                            clearcoatRoughness: mat.clearcoatRoughness ?? 0.1,
+                            reflectivity: mat.reflectivity ?? 0.5,
+                            envMapIntensity: mat.envMapIntensity ?? 1,
+                            emissive: mat.emissive ? '#' + mat.emissive.getHexString() : null,
+                            emissiveIntensity: mat.emissiveIntensity ?? 0
+                        }});
+                    }}
+                }});
+
+                // Export scene to JSON
+                const sceneJSON = scene.toJSON();
+
+                // Also include camera data and material overrides
+                const exportData = {{
+                    metadata: {{
+                        type: 'OrganConsoleScene',
+                        version: '1.1',
+                        generator: 'OrganConsoleDesigner'
+                    }},
+                    scene: sceneJSON,
+                    materialOverrides: materialOverrides,
+                    camera: {{
+                        type: 'PerspectiveCamera',
+                        fov: camera.fov,
+                        aspect: camera.aspect,
+                        near: camera.near,
+                        far: camera.far,
+                        position: camera.position.toArray(),
+                        target: controls.target.toArray()
+                    }},
+                    rendererSettings: {{
+                        toneMapping: 'ACESFilmicToneMapping',
+                        toneMappingExposure: 1.0,
+                        outputEncoding: 'sRGBEncoding',
+                        shadowMapEnabled: true,
+                        shadowMapType: 'PCFSoftShadowMap'
+                    }}
+                }};
+
+                // Convert to JSON string
+                const jsonString = JSON.stringify(exportData, null, 2);
+
+                // Create download
+                const blob = new Blob([jsonString], {{ type: 'application/json' }});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'organ_console_scene.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                console.log('Scene exported successfully!');
+            }}
+
+            // Add export button click handler
+            document.getElementById('exportSceneBtn').addEventListener('click', exportSceneAsJSON);
 
             // Animation loop
             function animate() {{
