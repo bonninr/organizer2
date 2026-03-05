@@ -225,19 +225,19 @@ def generate_console(parameters):
         fill_min_w = 0
         fill_min_h = 0
 
-    # Right fill board   X: [-bt - fill_width,  -bt]
+    # Right fill board — notch flipped to inner side for correct orientation
     parts.append(create_board(
         max_width=fill_width, max_height=fill_depth, board_thickness=bt,
         min_width=fill_min_w, min_height=fill_min_h,
         position=(-bt, bt, p.table_height_g),
-        rotation=(0, 90, 90), show_dimensions=show_dims
+        rotation=(0, 90, 90), flip_notch=fill_notch, show_dimensions=show_dims
     ))
-    # Left fill board — notch mirrored to inner side (flip_notch=True) for symmetry
+    # Left fill board — notch on default side (outer/Z=max_width) for correct orientation
     parts.append(create_board(
         max_width=fill_width, max_height=fill_depth, board_thickness=bt,
         min_width=fill_min_w, min_height=fill_min_h,
         position=(-bt - fill_width - center_width, bt, p.table_height_g),
-        rotation=(0, 90, 90), flip_notch=fill_notch, show_dimensions=show_dims
+        rotation=(0, 90, 90), show_dimensions=show_dims
     ))
 
     # Staircase keyboard cheeks — one vertical step per manual level.
