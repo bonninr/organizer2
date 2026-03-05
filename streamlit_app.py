@@ -1110,7 +1110,7 @@ def main():
                     )
                     pedal_model = console_pedalboard.generate_console(pedal_params)
                     pedal_gltf = generate_temp_file(pedal_model, "gltf", quality_value)
-                    combined_extra_models.append({"gltf_path": pedal_gltf, "offset_z": 3.5, "rotate_y": 3.14159})
+                    combined_extra_models.append({"gltf_path": pedal_gltf, "offset_z": 5.0, "rotate_y": 3.14159})
                 except Exception as e:
                     st.warning(f"Could not generate pedalboard for combined view: {e}")
 
