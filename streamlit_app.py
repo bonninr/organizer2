@@ -1102,7 +1102,7 @@ def main():
                                 p["general_board_thickness_g"] = general_board_thickness
                     bench_model = console_bench.generate_console(bench_defaults)
                     bench_gltf = generate_temp_file(bench_model, "gltf", quality_value)
-                    combined_extra_models.append({"gltf_path": bench_gltf, "offset_z": -3.5})
+                    combined_extra_models.append({"gltf_path": bench_gltf, "offset_z": -2.0, "rotate_y": 3.14159})
                 except Exception as e:
                     st.warning(f"Could not generate bench for combined view: {e}")
 

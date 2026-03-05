@@ -172,7 +172,8 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                             buf['uri'] = f"data:application/octet-stream;base64,{base64.b64encode(bd).decode()}"
             em_b64 = base64.b64encode(json.dumps(em_json).encode()).decode()
             em_offset = em.get('offset_z', 0)
-            extra_model_calls += f'\n                loadExtraModel("{em_b64}", {em_offset});'
+            em_rotate_y = em.get('rotate_y', 0)
+            extra_model_calls += f'\n                loadExtraModel("{em_b64}", {em_offset}, {em_rotate_y});'
 
     # Handle local wood texture - get as base64
     wood_texture_uri = get_wood_texture_base64(wood_texture_path)
@@ -656,8 +657,8 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                 }});
             }}
 
-            // Load an extra model, center it like the main model, then apply a Z offset
-            function loadExtraModel(gltfBase64, offsetZ) {{
+            // Load an extra model, center it like the main model, then apply offset and rotation
+            function loadExtraModel(gltfBase64, offsetZ, rotateY) {{
                 const extraLoader = new THREE.GLTFLoader();
                 try {{
                     const binStr = atob(gltfBase64);
@@ -674,6 +675,7 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                         extraModel.position.sub(center.multiplyScalar(mainModelScale));
                         extraModel.position.y = 0;
                         extraModel.position.z += offsetZ;
+                        if (rotateY) extraModel.rotation.y = rotateY;
                         scene.add(extraModel);
                         extraModelsList.push(extraModel);
                         URL.revokeObjectURL(url);
