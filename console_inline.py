@@ -39,7 +39,10 @@ def get_default_parameters():
         "Table": [
             {"table_height_g": 720},
             {"table_depth_g": 600},
-            {"table_cheek_height_g": 150}   # height of keyboard cheek boards above table
+            {"table_cheek_height_g": 60},        # height of each cheek staircase step
+            {"fill_notch_g": False},              # True = full depth with notch, False = short (cabinet depth)
+            {"fill_notch_start_depth_g": 332},   # depth from back where notch slant begins (~console_depth - bt)
+            {"fill_notch_front_width_g": 100}    # fill board width at the front of the notch (mm)
         ],
         "Volume_pedals": [
             {"volume_pedals_width_g": 120},
@@ -76,13 +79,23 @@ def generate_board_list(parameters):
     center_width = kbd_width + 2 * bt
     fill_width = (p.organ_internal_width_g - center_width) / 2
     table_inner_depth = p.table_depth_g - bt      # all table boards share this depth
-    cheek_height = getattr(p, 'table_cheek_height_g', 150)
+    step_height = getattr(p, 'table_cheek_height_g', 60)
+    fill_notch = getattr(p, 'fill_notch_g', False)
+    fill_notch_start = getattr(p, 'fill_notch_start_depth_g', p.console_depth_g - bt)
+    fill_notch_front_width = getattr(p, 'fill_notch_front_width_g', 100)
 
     num_manuals = int(getattr(p, 'keyboard_num_manuals_g', 2))
     depth_offset = getattr(p, 'keyboard_depth_offset_g', 130)
     num_levels = max(1, num_manuals)
 
-    step_height = cheek_height / max(1, num_levels)
+    if fill_notch:
+        fill_depth = table_inner_depth
+        fill_desc = f"Horizontal fill board, full table depth with notch from {fill_notch_start:.0f}mm"
+    else:
+        fill_depth = p.console_depth_g - bt
+        fill_desc = "Horizontal fill board, short (cabinet body depth only)"
+
+    fill_entry_extra = {"min_width": fill_notch_front_width, "min_height": fill_notch_start} if fill_notch else {}
 
     board_list = [
         {"name": "Left Side Panel", "width": p.console_depth_g, "height": p.total_height_g,
@@ -102,10 +115,10 @@ def generate_board_list(parameters):
         {"name": "Center Keyboard Support Board",
          "width": center_width, "height": table_inner_depth, "thickness": bt,
          "description": f"Horizontal board under keyboards; width = kbd ({kbd_width}mm) + 2×cheek seats ({bt}mm each)"},
-        {"name": "Left Fill Board", "width": fill_width, "height": table_inner_depth,
-         "thickness": bt, "description": "Horizontal fill surface at table height, left of keyboard section"},
-        {"name": "Right Fill Board", "width": fill_width, "height": table_inner_depth,
-         "thickness": bt, "description": "Horizontal fill surface at table height, right of keyboard section"},
+        {"name": "Left Fill Board", "width": fill_width, "height": fill_depth,
+         "thickness": bt, "description": fill_desc, **fill_entry_extra},
+        {"name": "Right Fill Board", "width": fill_width, "height": fill_depth,
+         "thickness": bt, "description": fill_desc, **fill_entry_extra},
         {"name": "Front Panel",
          "width": p.organ_internal_width_g, "height": p.table_height_g, "thickness": bt,
          "description": "Lower front panel with volume pedal hole",
@@ -120,18 +133,16 @@ def generate_board_list(parameters):
          "description": f"Volume pedals (quantity: {p.volume_pedals_number_g})"},
     ]
 
-    # Staircase keyboard cheeks: one step per manual level.
-    # Step n spans from z = n*step_height to (n+1)*step_height above table.
-    # Its depth equals level n's depth (shorter for higher steps).
+    # Staircase keyboard cheeks: one step per manual level (step_height each).
     for n in range(num_levels):
         step_depth = table_inner_depth - n * depth_offset
         if step_depth <= 0:
             break
         board_list += [
             {"name": f"Left Keyboard Cheek Step {n + 1}", "width": step_depth, "height": step_height,
-             "thickness": bt, "description": f"Left cheek staircase step {n + 1}, depth={step_depth:.0f}mm, height={step_height:.0f}mm"},
+             "thickness": bt, "description": f"Left cheek step {n + 1}, depth={step_depth:.0f}mm, height={step_height:.0f}mm"},
             {"name": f"Right Keyboard Cheek Step {n + 1}", "width": step_depth, "height": step_height,
-             "thickness": bt, "description": f"Right cheek staircase step {n + 1}, depth={step_depth:.0f}mm, height={step_height:.0f}mm"},
+             "thickness": bt, "description": f"Right cheek step {n + 1}, depth={step_depth:.0f}mm, height={step_height:.0f}mm"},
         ]
 
     return board_list
@@ -145,7 +156,10 @@ def generate_console(parameters):
     depth_offset = getattr(p, 'keyboard_depth_offset_g', 130)
     vertical_spacing = getattr(p, 'keyboard_vertical_spacing_g', 80)
     keyboard_y_offset = getattr(p, 'keyboard_y_offset_g', 0)
-    cheek_height = getattr(p, 'table_cheek_height_g', 150)
+    step_height = getattr(p, 'table_cheek_height_g', 60)
+    fill_notch = getattr(p, 'fill_notch_g', False)
+    fill_notch_start = getattr(p, 'fill_notch_start_depth_g', 332)
+    fill_notch_front_width = getattr(p, 'fill_notch_front_width_g', 100)
 
     bt = p.general_board_thickness_g
     table_inner_depth = p.table_depth_g - bt   # all table boards: from Y=bt to Y=table_depth_g
@@ -201,25 +215,36 @@ def generate_console(parameters):
         rotation=(0, 90, 90), show_dimensions=show_dims
     ))
 
-    # Fill boards — flat horizontal surfaces at table height on each side of the keyboard section.
+    # Fill boards — horizontal surfaces at table height on each side of the keyboard section.
+    # Style: notch = full table depth with trapezoidal slant; short = ends at cabinet body depth.
+    if fill_notch:
+        fill_depth = table_inner_depth
+        fill_min_w = fill_notch_front_width
+        fill_min_h = fill_notch_start
+    else:
+        fill_depth = p.console_depth_g - bt
+        fill_min_w = 0
+        fill_min_h = 0
+
     # Right fill board   X: [-bt - fill_width,  -bt]
     parts.append(create_board(
-        max_width=fill_width, max_height=table_inner_depth, board_thickness=bt,
+        max_width=fill_width, max_height=fill_depth, board_thickness=bt,
+        min_width=fill_min_w, min_height=fill_min_h,
         position=(-bt, bt, p.table_height_g),
         rotation=(0, 90, 90), show_dimensions=show_dims
     ))
     # Left fill board
     parts.append(create_board(
-        max_width=fill_width, max_height=table_inner_depth, board_thickness=bt,
+        max_width=fill_width, max_height=fill_depth, board_thickness=bt,
+        min_width=fill_min_w, min_height=fill_min_h,
         position=(-bt - fill_width - center_width, bt, p.table_height_g),
         rotation=(0, 90, 90), show_dimensions=show_dims
     ))
 
     # Staircase keyboard cheeks — one vertical step per manual level.
-    # Step n goes from table_height + n*step_h to table_height + (n+1)*step_h.
-    # Its depth matches level n (shorter steps for higher/upper manuals, front-aligned).
+    # Step n: height = step_height, depth = table_inner_depth - n*depth_offset.
+    # Rises from table_height + n*step_height (front-aligned with keyboard tips).
     num_levels = max(1, num_manuals)
-    step_height = cheek_height / num_levels
     for n in range(num_levels):
         step_depth = table_inner_depth - n * depth_offset
         if step_depth <= 0:

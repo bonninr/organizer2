@@ -37,7 +37,7 @@ from technical_drawing import create_a3_technical_drawing, generate_technical_dr
 
 
 # Cache version - increment to invalidate cache when export logic changes
-_CACHE_VERSION = 17  # v17: Inline console - removed fill_extend, added cheek_height param
+_CACHE_VERSION = 18  # v18: Inline cheek step height (60mm default), fill notch/short style
 
 @st.cache_data
 def generate_and_export_console_cached(
@@ -694,12 +694,37 @@ def main():
                 )
 
                 inline_table_cheek_height = st.slider(
-                    'Keyboard Cheek Height (mm)',
-                    min_value=50, max_value=300,
+                    'Cheek Step Height (mm)',
+                    min_value=20, max_value=150,
                     value=int(default_params["Table"][2]["table_cheek_height_g"]),
-                    step=10,
-                    help="Height of the vertical keyboard cheek boards above the table surface"
+                    step=5,
+                    help="Height of each cheek staircase step (one step per manual)"
                 )
+
+                inline_fill_notch = st.checkbox(
+                    'Fill boards full depth with notch',
+                    value=bool(default_params["Table"][3]["fill_notch_g"]),
+                    help="Checked: fill boards extend full table depth with a trapezoidal notch. Unchecked: short, ends at cabinet body depth."
+                )
+
+                if inline_fill_notch:
+                    inline_fill_notch_start = st.slider(
+                        'Notch Start Depth (mm)',
+                        min_value=100, max_value=600,
+                        value=int(default_params["Table"][4]["fill_notch_start_depth_g"]),
+                        step=10,
+                        help="Depth from back where the fill board notch slant begins"
+                    )
+                    inline_fill_notch_front_width = st.slider(
+                        'Notch Front Width (mm)',
+                        min_value=0, max_value=400,
+                        value=int(default_params["Table"][5]["fill_notch_front_width_g"]),
+                        step=10,
+                        help="Fill board width at the front of the notch (0 = fully slanted to a point)"
+                    )
+                else:
+                    inline_fill_notch_start = int(default_params["Table"][4]["fill_notch_start_depth_g"])
+                    inline_fill_notch_front_width = int(default_params["Table"][5]["fill_notch_front_width_g"])
 
             with st.expander("Volume Pedals", expanded=False):
                 volume_pedals_width = st.slider(
@@ -1119,7 +1144,10 @@ def main():
             "Table": [
                 {"table_height_g": inline_table_height},
                 {"table_depth_g": inline_table_depth},
-                {"table_cheek_height_g": inline_table_cheek_height}
+                {"table_cheek_height_g": inline_table_cheek_height},
+                {"fill_notch_g": inline_fill_notch},
+                {"fill_notch_start_depth_g": inline_fill_notch_start},
+                {"fill_notch_front_width_g": inline_fill_notch_front_width}
             ],
             "Volume_pedals": [
                 {"volume_pedals_width_g": volume_pedals_width},
