@@ -82,6 +82,8 @@ def generate_board_list(parameters):
     depth_offset = getattr(p, 'keyboard_depth_offset_g', 130)
     num_levels = max(1, num_manuals)
 
+    step_height = cheek_height / max(1, num_levels)
+
     board_list = [
         {"name": "Left Side Panel", "width": p.console_depth_g, "height": p.total_height_g,
          "thickness": bt, "description": "Left side panel (cabinet body depth)"},
@@ -100,12 +102,10 @@ def generate_board_list(parameters):
         {"name": "Center Keyboard Support Board",
          "width": center_width, "height": table_inner_depth, "thickness": bt,
          "description": f"Horizontal board under keyboards; width = kbd ({kbd_width}mm) + 2×cheek seats ({bt}mm each)"},
-        {"name": "Left Keyboard Cheek",
-         "width": table_inner_depth, "height": cheek_height, "thickness": bt,
-         "description": "Vertical side wall at left edge of keyboard section, full table depth"},
-        {"name": "Right Keyboard Cheek",
-         "width": table_inner_depth, "height": cheek_height, "thickness": bt,
-         "description": "Vertical side wall at right edge of keyboard section, full table depth"},
+        {"name": "Left Fill Board", "width": fill_width, "height": table_inner_depth,
+         "thickness": bt, "description": "Horizontal fill surface at table height, left of keyboard section"},
+        {"name": "Right Fill Board", "width": fill_width, "height": table_inner_depth,
+         "thickness": bt, "description": "Horizontal fill surface at table height, right of keyboard section"},
         {"name": "Front Panel",
          "width": p.organ_internal_width_g, "height": p.table_height_g, "thickness": bt,
          "description": "Lower front panel with volume pedal hole",
@@ -120,18 +120,18 @@ def generate_board_list(parameters):
          "description": f"Volume pedals (quantity: {p.volume_pedals_number_g})"},
     ]
 
-    # Staircase fill boards: one pair per keyboard level.
-    # Level n is at keyboard height n; depth decreases by depth_offset per level.
+    # Staircase keyboard cheeks: one step per manual level.
+    # Step n spans from z = n*step_height to (n+1)*step_height above table.
+    # Its depth equals level n's depth (shorter for higher steps).
     for n in range(num_levels):
-        depth = table_inner_depth - n * depth_offset
-        if depth <= 0:
+        step_depth = table_inner_depth - n * depth_offset
+        if step_depth <= 0:
             break
-        label = "table level (manual 1)" if n == 0 else f"staircase step, front at manual {n + 1} key tip"
         board_list += [
-            {"name": f"Left Fill Board {n + 1}", "width": fill_width, "height": depth,
-             "thickness": bt, "description": f"Left {label}"},
-            {"name": f"Right Fill Board {n + 1}", "width": fill_width, "height": depth,
-             "thickness": bt, "description": f"Right {label}"},
+            {"name": f"Left Keyboard Cheek Step {n + 1}", "width": step_depth, "height": step_height,
+             "thickness": bt, "description": f"Left cheek staircase step {n + 1}, depth={step_depth:.0f}mm, height={step_height:.0f}mm"},
+            {"name": f"Right Keyboard Cheek Step {n + 1}", "width": step_depth, "height": step_height,
+             "thickness": bt, "description": f"Right cheek staircase step {n + 1}, depth={step_depth:.0f}mm, height={step_height:.0f}mm"},
         ]
 
     return board_list
@@ -201,43 +201,42 @@ def generate_console(parameters):
         rotation=(0, 90, 90), show_dimensions=show_dims
     ))
 
-    # Right keyboard cheek — vertical board at right inner edge of center board.
-    # Sits on the center board, faces inward, spans full table depth.
-    # X spans: [-(2bt + fill_width),  -(bt + fill_width)]
+    # Fill boards — flat horizontal surfaces at table height on each side of the keyboard section.
+    # Right fill board   X: [-bt - fill_width,  -bt]
     parts.append(create_board(
-        max_width=table_inner_depth, max_height=cheek_height, board_thickness=bt,
-        position=(-(2 * bt + fill_width), bt, p.table_height_g),
-        rotation=(0, 0, 0), show_dimensions=show_dims
+        max_width=fill_width, max_height=table_inner_depth, board_thickness=bt,
+        position=(-bt, bt, p.table_height_g),
+        rotation=(0, 90, 90), show_dimensions=show_dims
     ))
-    # Left keyboard cheek — at left inner edge of center board.
-    # X spans: [-(3bt + fill_width + kbd_width),  -(2bt + fill_width + kbd_width)]
+    # Left fill board
     parts.append(create_board(
-        max_width=table_inner_depth, max_height=cheek_height, board_thickness=bt,
-        position=(-(3 * bt + fill_width + kbd_width), bt, p.table_height_g),
-        rotation=(0, 0, 0), show_dimensions=show_dims
+        max_width=fill_width, max_height=table_inner_depth, board_thickness=bt,
+        position=(-bt - fill_width - center_width, bt, p.table_height_g),
+        rotation=(0, 90, 90), show_dimensions=show_dims
     ))
 
-    # Staircase fill boards (horizontal, in the lateral fill areas).
-    # Level n is at keyboard surface height n (n × vertical_spacing above the table).
-    # Depth decreases by depth_offset per level so the front edge aligns with manual n+1 key tip.
+    # Staircase keyboard cheeks — one vertical step per manual level.
+    # Step n goes from table_height + n*step_h to table_height + (n+1)*step_h.
+    # Its depth matches level n (shorter steps for higher/upper manuals, front-aligned).
     num_levels = max(1, num_manuals)
+    step_height = cheek_height / num_levels
     for n in range(num_levels):
-        depth = table_inner_depth - n * depth_offset
-        if depth <= 0:
+        step_depth = table_inner_depth - n * depth_offset
+        if step_depth <= 0:
             break
-        z = p.table_height_g + n * vertical_spacing   # at keyboard level n height
+        z_base = p.table_height_g + n * step_height
 
-        # Right fill board   X: [-bt - fill_width,  -bt]
+        # Right cheek step — at right inner edge of center board
         parts.append(create_board(
-            max_width=fill_width, max_height=depth, board_thickness=bt,
-            position=(-bt, bt, z),
-            rotation=(0, 90, 90), show_dimensions=show_dims
+            max_width=step_depth, max_height=step_height, board_thickness=bt,
+            position=(-(2 * bt + fill_width), bt, z_base),
+            rotation=(0, 0, 0), show_dimensions=show_dims
         ))
-        # Left fill board   X: [-bt - fill_width - center_width - fill_width,  -bt - fill_width - center_width]
+        # Left cheek step — at left inner edge of center board
         parts.append(create_board(
-            max_width=fill_width, max_height=depth, board_thickness=bt,
-            position=(-bt - fill_width - center_width, bt, z),
-            rotation=(0, 90, 90), show_dimensions=show_dims
+            max_width=step_depth, max_height=step_height, board_thickness=bt,
+            position=(-(3 * bt + fill_width + kbd_width), bt, z_base),
+            rotation=(0, 0, 0), show_dimensions=show_dims
         ))
 
     # ── Lower front panel with volume pedal hole ──────────────────────────────
