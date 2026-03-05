@@ -37,7 +37,7 @@ from technical_drawing import create_a3_technical_drawing, generate_technical_dr
 
 
 # Cache version - increment to invalidate cache when export logic changes
-_CACHE_VERSION = 20  # v20: Fix bench unresponsive + inline param loss via unique widget keys
+_CACHE_VERSION = 21  # v21: Bench gets own General section with only relevant params
 
 @st.cache_data
 def generate_and_export_console_cached(
@@ -152,8 +152,8 @@ def main():
                     help="Offset for board spacing"
                 )
 
-        # GENERAL AND BASE SECTION (Console types only)
-        if console_type not in ["pedalboard", "inline"]:
+        # GENERAL AND BASE SECTION (normal / vertical only)
+        if console_type in ["normal", "vertical"]:
             with st.expander("General & Base", expanded=True):
                 organ_internal_width = st.slider(
                     'Internal Width (mm)',
@@ -237,8 +237,17 @@ def main():
                     help="Height of the note shelf"
                 )
 
-            # Additional bench-specific parameters
-            if console_type == "bench":
+        # GENERAL SECTION (bench only — only params bench actually uses)
+        if console_type == "bench":
+            with st.expander("General", expanded=True):
+                general_board_thickness = st.slider(
+                    'Board Thickness (mm)',
+                    min_value=12, max_value=25,
+                    value=default_params["General_and_base"][1]["general_board_thickness_g"],
+                    step=1, key="bench_board_thickness",
+                    help="Thickness of all wooden boards"
+                )
+
                 general_board_offset = st.slider(
                     'Board Offset (mm)',
                     min_value=5, max_value=20,
@@ -1220,11 +1229,7 @@ def main():
     elif console_type == "bench":
         parameters = {
             "General_and_base": [
-                {"organ_internal_width_g": organ_internal_width},
                 {"general_board_thickness_g": general_board_thickness},
-                {"base_height_g": base_height},
-                {"base_depth_g": base_depth},
-                {"base_front_distance_g": base_front_distance},
                 {"general_board_offset_g": general_board_offset},
                 {"general_feet_thickness_g": general_feet_thickness}
             ],
