@@ -28,6 +28,7 @@ import console_normal
 import console_vertical
 import console_bench
 import console_pedalboard
+import console_inline
 
 # Import exporters and viewer
 from file_exporters import generate_temp_file, generate_temp_csv, generate_temp_dxf, Tessellation, prepare_gltf_for_download
@@ -36,7 +37,7 @@ from technical_drawing import create_a3_technical_drawing, generate_technical_dr
 
 
 # Cache version - increment to invalidate cache when export logic changes
-_CACHE_VERSION = 15  # v15: Added keyboard generation to vertical console, separated cabinet width from keyboard width
+_CACHE_VERSION = 16  # v16: Added inline console type with staircase cheek boards
 
 @st.cache_data
 def generate_and_export_console_cached(
@@ -64,6 +65,8 @@ def generate_and_export_console_cached(
         console_module = console_normal
     elif console_type == "vertical":
         console_module = console_vertical
+    elif console_type == "inline":
+        console_module = console_inline
     elif console_type == "bench":
         console_module = console_bench
     else:  # pedalboard
@@ -71,6 +74,7 @@ def generate_and_export_console_cached(
 
     # Generate the organ console model
     console_model = console_module.generate_console(parameters_dict)
+
 
     # Generate board list for exports
     board_list = console_module.generate_board_list(parameters_dict)
@@ -99,13 +103,13 @@ def main():
 
         console_type = st.radio(
             "Console Type",
-            options=["normal", "vertical", "bench", "pedalboard"],
-            format_func=lambda x: {"normal": "Normal Console", "vertical": "Vertical Console", "bench": "Bench Console", "pedalboard": "Pedalboard"}[x],
+            options=["normal", "vertical", "inline", "bench", "pedalboard"],
+            format_func=lambda x: {"normal": "Normal Console", "vertical": "Vertical Console", "inline": "Inline Console", "bench": "Bench Console", "pedalboard": "Pedalboard"}[x],
             help="Select the type of organ console to design"
         )
 
-        # COMBINED VIEW (only for normal/vertical consoles)
-        if console_type in ["normal", "vertical"]:
+        # COMBINED VIEW (only for normal/vertical/inline consoles)
+        if console_type in ["normal", "vertical", "inline"]:
             show_bench = st.checkbox("Show Bench", value=False, help="Show bench alongside the console")
             show_pedalboard = st.checkbox("Show Pedalboard", value=False, help="Show pedalboard alongside the console")
         else:
@@ -122,6 +126,8 @@ def main():
             default_params = console_normal.get_default_parameters()
         elif console_type == "vertical":
             default_params = console_vertical.get_default_parameters()
+        elif console_type == "inline":
+            default_params = console_inline.get_default_parameters()
         elif console_type == "bench":
             default_params = console_bench.get_default_parameters()
         else:  # pedalboard
@@ -147,7 +153,7 @@ def main():
                 )
 
         # GENERAL AND BASE SECTION (Console types only)
-        if console_type != "pedalboard":
+        if console_type not in ["pedalboard", "inline"]:
             with st.expander("General & Base", expanded=True):
                 organ_internal_width = st.slider(
                     'Internal Width (mm)',
@@ -627,6 +633,164 @@ def main():
                     help="Offset from front edge (0 = keys at front, negative = keys extend past front)"
                 )
 
+        # INLINE CONSOLE SECTIONS
+        if console_type == "inline":
+            with st.expander("General & Base", expanded=True):
+                organ_internal_width = st.slider(
+                    'Internal Width (mm)',
+                    min_value=800, max_value=2000,
+                    value=default_params["General_and_base"][0]["organ_internal_width_g"],
+                    step=50,
+                    help="Internal width of the console"
+                )
+
+                general_board_thickness = st.slider(
+                    'Board Thickness (mm)',
+                    min_value=12, max_value=25,
+                    value=default_params["General_and_base"][1]["general_board_thickness_g"],
+                    step=1,
+                    help="Thickness of all wooden boards"
+                )
+
+                inline_total_height = st.slider(
+                    'Total Height (mm)',
+                    min_value=700, max_value=1400,
+                    value=default_params["General_and_base"][2]["total_height_g"],
+                    step=25,
+                    help="Full height of the console side panels"
+                )
+
+                inline_console_depth = st.slider(
+                    'Console Depth (mm)',
+                    min_value=350, max_value=800,
+                    value=default_params["General_and_base"][3]["console_depth_g"],
+                    step=25,
+                    help="Full front-to-back depth of the console"
+                )
+
+                base_front_distance = st.slider(
+                    'Front Distance (mm)',
+                    min_value=0, max_value=100,
+                    value=default_params["General_and_base"][4]["base_front_distance_g"],
+                    step=5,
+                    help="Distance from front face to volume pedal front panel"
+                )
+
+            with st.expander("Table", expanded=True):
+                inline_table_height = st.slider(
+                    'Table Height (mm)',
+                    min_value=500, max_value=900,
+                    value=default_params["Table"][0]["table_height_g"],
+                    step=10,
+                    help="Height of the keyboard table top surface"
+                )
+
+                inline_keyboard_section_width = st.slider(
+                    'Keyboard Section Width (mm)',
+                    min_value=500, max_value=1400,
+                    value=default_params["Table"][1]["keyboard_section_width_g"],
+                    step=25,
+                    help="Width of the center keyboard area (lateral boards fill the rest)"
+                )
+
+            with st.expander("Volume Pedals", expanded=False):
+                volume_pedals_width = st.slider(
+                    'Pedal Width (mm)',
+                    min_value=80, max_value=200,
+                    value=default_params["Volume_pedals"][0]["volume_pedals_width_g"],
+                    step=10,
+                    help="Width of each volume pedal"
+                )
+
+                volume_pedals_height = st.slider(
+                    'Pedal Height (mm)',
+                    min_value=150, max_value=300,
+                    value=default_params["Volume_pedals"][1]["volume_pedals_height_g"],
+                    step=10,
+                    help="Height of each volume pedal"
+                )
+
+                volume_pedals_number = st.slider(
+                    'Number of Pedals',
+                    min_value=1, max_value=5,
+                    value=default_params["Volume_pedals"][2]["volume_pedals_number_g"],
+                    step=1,
+                    help="Number of volume pedal controls"
+                )
+
+                volume_pedals_spacing = st.slider(
+                    'Pedal Spacing (mm)',
+                    min_value=5, max_value=20,
+                    value=default_params["Volume_pedals"][3]["volume_pedals_spacing_g"],
+                    step=1,
+                    help="Spacing between pedals"
+                )
+
+                volume_pedals_hole_start_height = st.slider(
+                    'Pedal Hole Start Height (mm)',
+                    min_value=100, max_value=200,
+                    value=default_params["Volume_pedals"][4]["volume_pedals_hole_start_height_g"],
+                    step=10,
+                    help="Starting height for pedal holes"
+                )
+
+            with st.expander("Keyboards", expanded=True):
+                inline_keyboard_num_manuals = st.slider(
+                    'Number of Manuals',
+                    min_value=0, max_value=4,
+                    value=int(default_params["Keyboards"][0]["keyboard_num_manuals_g"]),
+                    step=1,
+                    help="Number of keyboard manuals (0 to disable)"
+                )
+
+                inline_keyboard_total_keys = st.slider(
+                    'Total Keys',
+                    min_value=32, max_value=88,
+                    value=int(default_params["Keyboards"][1]["keyboard_total_keys_g"]),
+                    step=1,
+                    help="Total number of keys per manual"
+                )
+
+                inline_keyboard_total_width = st.slider(
+                    'Keyboard Width (mm)',
+                    min_value=600, max_value=1200,
+                    value=int(default_params["Keyboards"][2]["keyboard_total_width_g"]),
+                    step=10,
+                    help="Total keyboard width"
+                )
+
+                inline_keyboard_white_key_length = st.slider(
+                    'White Key Length (mm)',
+                    min_value=120, max_value=180,
+                    value=int(default_params["Keyboards"][3]["keyboard_white_key_length_g"]),
+                    step=5,
+                    help="Visible length of white keys"
+                )
+
+                inline_keyboard_vertical_spacing = st.slider(
+                    'Vertical Spacing (mm)',
+                    min_value=60, max_value=120,
+                    value=int(default_params["Keyboards"][10]["keyboard_vertical_spacing_g"]),
+                    step=5,
+                    help="Vertical distance between manuals"
+                )
+
+                inline_keyboard_depth_offset = st.slider(
+                    'Depth Offset (mm)',
+                    min_value=50, max_value=200,
+                    value=int(default_params["Keyboards"][11]["keyboard_depth_offset_g"]),
+                    step=5,
+                    help="How much each higher manual is stepped back"
+                )
+
+                inline_keyboard_y_offset = st.slider(
+                    'Y Offset from Front (mm)',
+                    min_value=-200, max_value=200,
+                    value=int(default_params["Keyboards"][12]["keyboard_y_offset_g"]),
+                    step=10,
+                    help="Offset from front edge"
+                )
+
         # BENCH SECTION (Bench only)
         if console_type == "bench":
             with st.expander("Bench Dimensions", expanded=False):
@@ -935,6 +1099,45 @@ def main():
                 {"show_dimensions_g": show_dimensions}
             ]
         }
+    elif console_type == "inline":
+        parameters = {
+            "General_and_base": [
+                {"organ_internal_width_g": organ_internal_width},
+                {"general_board_thickness_g": general_board_thickness},
+                {"total_height_g": inline_total_height},
+                {"console_depth_g": inline_console_depth},
+                {"base_front_distance_g": base_front_distance}
+            ],
+            "Table": [
+                {"table_height_g": inline_table_height},
+                {"keyboard_section_width_g": inline_keyboard_section_width}
+            ],
+            "Volume_pedals": [
+                {"volume_pedals_width_g": volume_pedals_width},
+                {"volume_pedals_height_g": volume_pedals_height},
+                {"volume_pedals_number_g": volume_pedals_number},
+                {"volume_pedals_spacing_g": volume_pedals_spacing},
+                {"volume_pedals_hole_start_height_g": volume_pedals_hole_start_height}
+            ],
+            "Keyboards": [
+                {"keyboard_num_manuals_g": inline_keyboard_num_manuals},
+                {"keyboard_total_keys_g": inline_keyboard_total_keys},
+                {"keyboard_total_width_g": inline_keyboard_total_width},
+                {"keyboard_white_key_length_g": inline_keyboard_white_key_length},
+                {"keyboard_white_key_height_g": 15},
+                {"keyboard_black_key_width_ratio_g": 0.65},
+                {"keyboard_black_key_length_g": 95},
+                {"keyboard_black_key_height_g": 10},
+                {"keyboard_key_gap_g": 0.5},
+                {"keyboard_base_thickness_g": 10},
+                {"keyboard_vertical_spacing_g": inline_keyboard_vertical_spacing},
+                {"keyboard_depth_offset_g": inline_keyboard_depth_offset},
+                {"keyboard_y_offset_g": inline_keyboard_y_offset}
+            ],
+            "Display": [
+                {"show_dimensions_g": show_dimensions}
+            ]
+        }
     elif console_type == "normal":
         parameters = {
             "General_and_base": [
@@ -1038,7 +1241,7 @@ def main():
     st.session_state[f'last_params_{console_type}'] = parameters
 
     # VISUALIZATION SECTION
-    console_names = {"normal": "Normal", "vertical": "Vertical", "bench": "Bench", "pedalboard": "Pedalboard"}
+    console_names = {"normal": "Normal", "vertical": "Vertical", "inline": "Inline", "bench": "Bench", "pedalboard": "Pedalboard"}
     st.header(f"{console_names[console_type]} Console Preview")
 
     # Initialize variables
@@ -1069,6 +1272,8 @@ def main():
             console_module = console_normal
         elif console_type == "vertical":
             console_module = console_vertical
+        elif console_type == "inline":
+            console_module = console_inline
         elif console_type == "bench":
             console_module = console_bench
         else:
