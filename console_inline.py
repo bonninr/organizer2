@@ -30,9 +30,9 @@ from keyboard import generate_keyboard_stack, get_keyboard_dimensions
 def get_default_parameters():
     return {
         "General_and_base": [
-            {"organ_internal_width_g": 1300},
+            {"organ_internal_width_g": 1100},
             {"general_board_thickness_g": 18},
-            {"total_height_g": 1050},
+            {"total_height_g": 900},
             {"console_depth_g": 250},
             {"base_front_distance_g": 10}
         ],
@@ -41,8 +41,8 @@ def get_default_parameters():
             {"table_depth_g": 550},
             {"table_cheek_height_g": 60},        # height of each cheek staircase step
             {"fill_notch_g": False},              # True = full depth with notch, False = short (cabinet depth)
-            {"fill_notch_start_depth_g": 232},   # depth from back where notch slant begins (~console_depth - bt)
-            {"fill_notch_front_width_g": 100}    # fill board width at the front of the notch (mm)
+            {"fill_notch_start_depth_g": 350},   # depth from back where notch slant begins (~console_depth - bt)
+            {"fill_notch_front_width_g": 20}     # fill board width at the front of the notch (mm)
         ],
         "Volume_pedals": [
             {"volume_pedals_width_g": 120},
