@@ -106,11 +106,8 @@ def main():
 
         # COMBINED VIEW (only for normal/vertical consoles)
         if console_type in ["normal", "vertical"]:
-            col_b, col_p = st.columns(2)
-            with col_b:
-                show_bench = st.checkbox("+ Bench", value=False, help="Show bench alongside the console")
-            with col_p:
-                show_pedalboard = st.checkbox("+ Pedalboard", value=False, help="Show pedalboard alongside the console")
+            show_bench = st.checkbox("Show Bench", value=False, help="Show bench alongside the console")
+            show_pedalboard = st.checkbox("Show Pedalboard", value=False, help="Show pedalboard alongside the console")
         else:
             show_bench = False
             show_pedalboard = False
