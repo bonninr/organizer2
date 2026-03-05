@@ -1094,38 +1094,24 @@ def main():
             if show_bench:
                 try:
                     bench_defaults = console_bench.get_default_parameters()
-                    # Override shared dimensions to match current console
                     for section in bench_defaults.values():
                         for p in section:
                             if "organ_internal_width_g" in p:
                                 p["organ_internal_width_g"] = organ_internal_width
                             if "general_board_thickness_g" in p:
                                 p["general_board_thickness_g"] = general_board_thickness
-                    bench_gltf, _, _ = generate_and_export_console_cached(
-                        console_type="bench",
-                        parameters_dict=bench_defaults,
-                        file_format="gltf",
-                        tessellation=quality_value
-                    )
-                    combined_extra_models.append({"gltf_path": bench_gltf, "offset_y": base_depth})
+                    bench_model = console_bench.generate_console(bench_defaults)
+                    bench_gltf = generate_temp_file(bench_model, "gltf", quality_value)
+                    combined_extra_models.append({"gltf_path": bench_gltf, "offset_z": 3.5})
                 except Exception as e:
                     st.warning(f"Could not generate bench for combined view: {e}")
 
             if show_pedalboard:
                 try:
                     pedal_defaults = console_pedalboard.get_default_parameters()
-                    # Override shared dimensions to match current console
-                    for section in pedal_defaults.values():
-                        for p in section:
-                            if "general_board_thickness_g" in p:
-                                p["general_board_thickness_g"] = general_board_thickness
-                    pedal_gltf, _, _ = generate_and_export_console_cached(
-                        console_type="pedalboard",
-                        parameters_dict=pedal_defaults,
-                        file_format="gltf",
-                        tessellation=quality_value
-                    )
-                    combined_extra_models.append({"gltf_path": pedal_gltf, "offset_y": 0})
+                    pedal_model = console_pedalboard.generate_console(pedal_defaults)
+                    pedal_gltf = generate_temp_file(pedal_model, "gltf", quality_value)
+                    combined_extra_models.append({"gltf_path": pedal_gltf, "offset_z": -3.5})
                 except Exception as e:
                     st.warning(f"Could not generate pedalboard for combined view: {e}")
 

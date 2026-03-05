@@ -171,7 +171,7 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                                 bd = bf.read()
                             buf['uri'] = f"data:application/octet-stream;base64,{base64.b64encode(bd).decode()}"
             em_b64 = base64.b64encode(json.dumps(em_json).encode()).decode()
-            em_offset = em.get('offset_y', 0)
+            em_offset = em.get('offset_z', 0)
             extra_model_calls += f'\n                loadExtraModel("{em_b64}", {em_offset});'
 
     # Handle local wood texture - get as base64
@@ -656,8 +656,8 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                 }});
             }}
 
-            // Load an extra model at a Y offset (build123d mm, maps to Three.js -Z)
-            function loadExtraModel(gltfBase64, offsetY) {{
+            // Load an extra model, center it like the main model, then apply a Z offset
+            function loadExtraModel(gltfBase64, offsetZ) {{
                 const extraLoader = new THREE.GLTFLoader();
                 try {{
                     const binStr = atob(gltfBase64);
@@ -667,9 +667,13 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                     const url = URL.createObjectURL(blob);
                     extraLoader.load(url, function(gltf) {{
                         const extraModel = gltf.scene;
+                        // Center and scale like the main model, then shift by offsetZ
+                        const box = new THREE.Box3().setFromObject(extraModel);
+                        const center = box.getCenter(new THREE.Vector3());
                         extraModel.scale.setScalar(mainModelScale);
-                        extraModel.position.copy(mainCenterOffset);
-                        extraModel.position.z += -offsetY * mainModelScale;
+                        extraModel.position.sub(center.multiplyScalar(mainModelScale));
+                        extraModel.position.y = 0;
+                        extraModel.position.z += offsetZ;
                         scene.add(extraModel);
                         extraModelsList.push(extraModel);
                         URL.revokeObjectURL(url);
@@ -686,7 +690,7 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                         }}, undefined, function() {{
                             applyTextureToModel(extraModel, null);
                         }});
-                        console.log('✅ Extra model loaded, Z offset:', (-offsetY * mainModelScale).toFixed(3));
+                        console.log('✅ Extra model loaded, Z offset:', offsetZ);
                     }}, undefined, function(err) {{
                         console.error('❌ Extra model load failed:', err);
                     }});
