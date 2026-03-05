@@ -33,15 +33,15 @@ def get_default_parameters():
             {"organ_internal_width_g": 1300},
             {"general_board_thickness_g": 18},
             {"total_height_g": 1050},
-            {"console_depth_g": 350},
+            {"console_depth_g": 250},
             {"base_front_distance_g": 10}
         ],
         "Table": [
             {"table_height_g": 720},
-            {"table_depth_g": 600},
+            {"table_depth_g": 550},
             {"table_cheek_height_g": 60},        # height of each cheek staircase step
             {"fill_notch_g": False},              # True = full depth with notch, False = short (cabinet depth)
-            {"fill_notch_start_depth_g": 332},   # depth from back where notch slant begins (~console_depth - bt)
+            {"fill_notch_start_depth_g": 232},   # depth from back where notch slant begins (~console_depth - bt)
             {"fill_notch_front_width_g": 100}    # fill board width at the front of the notch (mm)
         ],
         "Volume_pedals": [
@@ -158,7 +158,7 @@ def generate_console(parameters):
     keyboard_y_offset = getattr(p, 'keyboard_y_offset_g', 0)
     step_height = getattr(p, 'table_cheek_height_g', 60)
     fill_notch = getattr(p, 'fill_notch_g', False)
-    fill_notch_start = getattr(p, 'fill_notch_start_depth_g', 332)
+    fill_notch_start = getattr(p, 'fill_notch_start_depth_g', p.console_depth_g - bt)
     fill_notch_front_width = getattr(p, 'fill_notch_front_width_g', 100)
 
     bt = p.general_board_thickness_g
@@ -233,12 +233,12 @@ def generate_console(parameters):
         position=(-bt, bt, p.table_height_g),
         rotation=(0, 90, 90), show_dimensions=show_dims
     ))
-    # Left fill board
+    # Left fill board — notch mirrored to inner side (flip_notch=True) for symmetry
     parts.append(create_board(
         max_width=fill_width, max_height=fill_depth, board_thickness=bt,
         min_width=fill_min_w, min_height=fill_min_h,
         position=(-bt - fill_width - center_width, bt, p.table_height_g),
-        rotation=(0, 90, 90), show_dimensions=show_dims
+        rotation=(0, 90, 90), flip_notch=fill_notch, show_dimensions=show_dims
     ))
 
     # Staircase keyboard cheeks — one vertical step per manual level.

@@ -37,7 +37,7 @@ from technical_drawing import create_a3_technical_drawing, generate_technical_dr
 
 
 # Cache version - increment to invalidate cache when export logic changes
-_CACHE_VERSION = 18  # v18: Inline cheek step height (60mm default), fill notch/short style
+_CACHE_VERSION = 19  # v19: Inline defaults 250/550 depth, fill notch mirrored on left board
 
 @st.cache_data
 def generate_and_export_console_cached(

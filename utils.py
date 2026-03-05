@@ -49,7 +49,7 @@ class DotDict:
 
 def create_board(max_width, max_height, board_thickness, position, rotation,
                 min_width=0, min_height=0, rectangular_holes=[], circular_holes=[],
-                show_dimensions=False, material=None):
+                show_dimensions=False, material=None, flip_notch=False):
     """
     Create a board with optional slanted edges and holes using build123d.
 
@@ -121,7 +121,18 @@ def create_board(max_width, max_height, board_thickness, position, rotation,
         (0, max_height)
     ]
 
-    if min_width == 0:
+    if flip_notch and min_width != 0:
+        # Mirror the notch to the opposite side (inner/Z=0 side narrows instead of outer/Z=max_width side).
+        # Mirrored polygon: outer edge stays straight, inner edge slants from (0, min_height) to
+        # (max_width - min_width, max_height), giving the same front width but on the opposite side.
+        points = [
+            (0, 0),
+            (max_width, 0),
+            (max_width, max_height),
+            (max_width - min_width, max_height),
+            (0, min_height)
+        ]
+    elif min_width == 0:
         points = [points[0], points[1], points[2], points[4]]  # Remove slanted edge
 
     # Create the board by extruding the shape
