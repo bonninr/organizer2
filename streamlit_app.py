@@ -1102,7 +1102,7 @@ def main():
                                 p["general_board_thickness_g"] = general_board_thickness
                     bench_model = console_bench.generate_console(bench_defaults)
                     bench_gltf = generate_temp_file(bench_model, "gltf", quality_value)
-                    combined_extra_models.append({"gltf_path": bench_gltf, "offset_z": 3.5})
+                    combined_extra_models.append({"gltf_path": bench_gltf, "offset_z": -3.5})
                 except Exception as e:
                     st.warning(f"Could not generate bench for combined view: {e}")
 
@@ -1111,7 +1111,7 @@ def main():
                     pedal_defaults = console_pedalboard.get_default_parameters()
                     pedal_model = console_pedalboard.generate_console(pedal_defaults)
                     pedal_gltf = generate_temp_file(pedal_model, "gltf", quality_value)
-                    combined_extra_models.append({"gltf_path": pedal_gltf, "offset_z": -3.5})
+                    combined_extra_models.append({"gltf_path": pedal_gltf, "offset_z": 3.5})
                 except Exception as e:
                     st.warning(f"Could not generate pedalboard for combined view: {e}")
 
