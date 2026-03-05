@@ -156,12 +156,11 @@ def generate_console(parameters):
     depth_offset = getattr(p, 'keyboard_depth_offset_g', 130)
     vertical_spacing = getattr(p, 'keyboard_vertical_spacing_g', 80)
     keyboard_y_offset = getattr(p, 'keyboard_y_offset_g', 0)
+    bt = p.general_board_thickness_g
     step_height = getattr(p, 'table_cheek_height_g', 60)
     fill_notch = getattr(p, 'fill_notch_g', False)
     fill_notch_start = getattr(p, 'fill_notch_start_depth_g', p.console_depth_g - bt)
     fill_notch_front_width = getattr(p, 'fill_notch_front_width_g', 100)
-
-    bt = p.general_board_thickness_g
     table_inner_depth = p.table_depth_g - bt   # all table boards: from Y=bt to Y=table_depth_g
 
     kbd_dims = get_keyboard_dimensions(parameters)
