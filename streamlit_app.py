@@ -37,7 +37,7 @@ from technical_drawing import create_a3_technical_drawing, generate_technical_dr
 
 
 # Cache version - increment to invalidate cache when export logic changes
-_CACHE_VERSION = 16  # v16: Added inline console type with staircase cheek boards
+_CACHE_VERSION = 17  # v17: Inline console - removed fill_extend, added cheek_height param
 
 @st.cache_data
 def generate_and_export_console_cached(
@@ -693,10 +693,12 @@ def main():
                     help="Total front-to-back depth of the keyboard table (extends beyond console body depth)"
                 )
 
-                inline_table_fill_extend = st.checkbox(
-                    'Fill boards full depth (notch mode)',
-                    value=bool(default_params["Table"][2]["table_fill_extend_g"]),
-                    help="If checked, fill boards extend the full table depth; otherwise only the extension region (~table depth minus console depth)"
+                inline_table_cheek_height = st.slider(
+                    'Keyboard Cheek Height (mm)',
+                    min_value=50, max_value=300,
+                    value=int(default_params["Table"][2]["table_cheek_height_g"]),
+                    step=10,
+                    help="Height of the vertical keyboard cheek boards above the table surface"
                 )
 
             with st.expander("Volume Pedals", expanded=False):
@@ -1117,7 +1119,7 @@ def main():
             "Table": [
                 {"table_height_g": inline_table_height},
                 {"table_depth_g": inline_table_depth},
-                {"table_fill_extend_g": inline_table_fill_extend}
+                {"table_cheek_height_g": inline_table_cheek_height}
             ],
             "Volume_pedals": [
                 {"volume_pedals_width_g": volume_pedals_width},
