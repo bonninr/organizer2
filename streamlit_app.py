@@ -37,7 +37,7 @@ from technical_drawing import create_a3_technical_drawing, generate_technical_dr
 
 
 # Cache version - increment to invalidate cache when export logic changes
-_CACHE_VERSION = 19  # v19: Inline defaults 250/550 depth, fill notch mirrored on left board
+_CACHE_VERSION = 20  # v20: Fix bench unresponsive + inline param loss via unique widget keys
 
 @st.cache_data
 def generate_and_export_console_cached(
@@ -201,7 +201,7 @@ def main():
                     'Board Offset (mm)',
                     min_value=5, max_value=20,
                     value=default_params["General_and_base"][5]["general_board_offset_g"],
-                    step=1,
+                    step=1, key="vertical_board_offset",
                     help="Offset for board spacing"
                 )
 
@@ -209,7 +209,7 @@ def main():
                     'Feet Thickness (mm)',
                     min_value=30, max_value=80,
                     value=default_params["General_and_base"][6]["general_feet_thickness_g"],
-                    step=5,
+                    step=5, key="vertical_feet_thickness",
                     help="Thickness of console feet"
                 )
 
@@ -243,7 +243,7 @@ def main():
                     'Board Offset (mm)',
                     min_value=5, max_value=20,
                     value=default_params["General_and_base"][5]["general_board_offset_g"],
-                    step=1,
+                    step=1, key="bench_board_offset",
                     help="Offset for board spacing"
                 )
 
@@ -251,7 +251,7 @@ def main():
                     'Feet Thickness (mm)',
                     min_value=30, max_value=80,
                     value=default_params["General_and_base"][6]["general_feet_thickness_g"],
-                    step=5,
+                    step=5, key="bench_feet_thickness",
                     help="Thickness of console feet"
                 )
 
@@ -640,7 +640,7 @@ def main():
                     'Internal Width (mm)',
                     min_value=800, max_value=2000,
                     value=default_params["General_and_base"][0]["organ_internal_width_g"],
-                    step=50,
+                    step=50, key="inline_organ_width",
                     help="Internal width of the console"
                 )
 
@@ -648,7 +648,7 @@ def main():
                     'Board Thickness (mm)',
                     min_value=12, max_value=25,
                     value=default_params["General_and_base"][1]["general_board_thickness_g"],
-                    step=1,
+                    step=1, key="inline_board_thickness",
                     help="Thickness of all wooden boards"
                 )
 
@@ -656,7 +656,7 @@ def main():
                     'Total Height (mm)',
                     min_value=700, max_value=1400,
                     value=default_params["General_and_base"][2]["total_height_g"],
-                    step=25,
+                    step=25, key="inline_total_height",
                     help="Full height of the console side panels"
                 )
 
@@ -664,7 +664,7 @@ def main():
                     'Cabinet Body Depth (mm)',
                     min_value=200, max_value=600,
                     value=default_params["General_and_base"][3]["console_depth_g"],
-                    step=25,
+                    step=25, key="inline_console_depth",
                     help="Depth of the cabinet body (side panels, back, front panel). The keyboard table extends further."
                 )
 
@@ -672,7 +672,7 @@ def main():
                     'Front Distance (mm)',
                     min_value=0, max_value=100,
                     value=default_params["General_and_base"][4]["base_front_distance_g"],
-                    step=5,
+                    step=5, key="inline_base_front_distance",
                     help="Distance from front face to volume pedal front panel"
                 )
 
@@ -681,7 +681,7 @@ def main():
                     'Table Height (mm)',
                     min_value=500, max_value=900,
                     value=default_params["Table"][0]["table_height_g"],
-                    step=10,
+                    step=10, key="inline_table_height",
                     help="Height of the keyboard table top surface"
                 )
 
@@ -689,7 +689,7 @@ def main():
                     'Table Depth (mm)',
                     min_value=400, max_value=900,
                     value=default_params["Table"][1]["table_depth_g"],
-                    step=25,
+                    step=25, key="inline_table_depth",
                     help="Total front-to-back depth of the keyboard table (extends beyond console body depth)"
                 )
 
@@ -697,13 +697,14 @@ def main():
                     'Cheek Step Height (mm)',
                     min_value=20, max_value=150,
                     value=int(default_params["Table"][2]["table_cheek_height_g"]),
-                    step=5,
+                    step=5, key="inline_cheek_height",
                     help="Height of each cheek staircase step (one step per manual)"
                 )
 
                 inline_fill_notch = st.checkbox(
                     'Fill boards full depth with notch',
                     value=bool(default_params["Table"][3]["fill_notch_g"]),
+                    key="inline_fill_notch",
                     help="Checked: fill boards extend full table depth with a trapezoidal notch. Unchecked: short, ends at cabinet body depth."
                 )
 
@@ -712,14 +713,14 @@ def main():
                         'Notch Start Depth (mm)',
                         min_value=100, max_value=600,
                         value=int(default_params["Table"][4]["fill_notch_start_depth_g"]),
-                        step=10,
+                        step=10, key="inline_notch_start",
                         help="Depth from back where the fill board notch slant begins"
                     )
                     inline_fill_notch_front_width = st.slider(
                         'Notch Front Width (mm)',
                         min_value=0, max_value=400,
                         value=int(default_params["Table"][5]["fill_notch_front_width_g"]),
-                        step=10,
+                        step=10, key="inline_notch_front_width",
                         help="Fill board width at the front of the notch (0 = fully slanted to a point)"
                     )
                 else:
@@ -731,7 +732,7 @@ def main():
                     'Pedal Width (mm)',
                     min_value=80, max_value=200,
                     value=default_params["Volume_pedals"][0]["volume_pedals_width_g"],
-                    step=10,
+                    step=10, key="inline_pedal_width",
                     help="Width of each volume pedal"
                 )
 
@@ -739,7 +740,7 @@ def main():
                     'Pedal Height (mm)',
                     min_value=150, max_value=300,
                     value=default_params["Volume_pedals"][1]["volume_pedals_height_g"],
-                    step=10,
+                    step=10, key="inline_pedal_height",
                     help="Height of each volume pedal"
                 )
 
@@ -747,7 +748,7 @@ def main():
                     'Number of Pedals',
                     min_value=1, max_value=5,
                     value=default_params["Volume_pedals"][2]["volume_pedals_number_g"],
-                    step=1,
+                    step=1, key="inline_pedal_number",
                     help="Number of volume pedal controls"
                 )
 
@@ -755,7 +756,7 @@ def main():
                     'Pedal Spacing (mm)',
                     min_value=5, max_value=20,
                     value=default_params["Volume_pedals"][3]["volume_pedals_spacing_g"],
-                    step=1,
+                    step=1, key="inline_pedal_spacing",
                     help="Spacing between pedals"
                 )
 
@@ -763,7 +764,7 @@ def main():
                     'Pedal Hole Start Height (mm)',
                     min_value=100, max_value=200,
                     value=default_params["Volume_pedals"][4]["volume_pedals_hole_start_height_g"],
-                    step=10,
+                    step=10, key="inline_pedal_hole_height",
                     help="Starting height for pedal holes"
                 )
 
@@ -772,7 +773,7 @@ def main():
                     'Number of Manuals',
                     min_value=0, max_value=4,
                     value=int(default_params["Keyboards"][0]["keyboard_num_manuals_g"]),
-                    step=1,
+                    step=1, key="inline_kbd_manuals",
                     help="Number of keyboard manuals (0 to disable)"
                 )
 
@@ -780,7 +781,7 @@ def main():
                     'Total Keys',
                     min_value=32, max_value=88,
                     value=int(default_params["Keyboards"][1]["keyboard_total_keys_g"]),
-                    step=1,
+                    step=1, key="inline_kbd_total_keys",
                     help="Total number of keys per manual"
                 )
 
@@ -788,7 +789,7 @@ def main():
                     'Keyboard Width (mm)',
                     min_value=600, max_value=1200,
                     value=int(default_params["Keyboards"][2]["keyboard_total_width_g"]),
-                    step=10,
+                    step=10, key="inline_kbd_width",
                     help="Total keyboard width"
                 )
 
@@ -796,7 +797,7 @@ def main():
                     'White Key Length (mm)',
                     min_value=120, max_value=180,
                     value=int(default_params["Keyboards"][3]["keyboard_white_key_length_g"]),
-                    step=5,
+                    step=5, key="inline_kbd_white_key_len",
                     help="Visible length of white keys"
                 )
 
@@ -804,7 +805,7 @@ def main():
                     'Vertical Spacing (mm)',
                     min_value=60, max_value=120,
                     value=int(default_params["Keyboards"][10]["keyboard_vertical_spacing_g"]),
-                    step=5,
+                    step=5, key="inline_kbd_v_spacing",
                     help="Vertical distance between manuals"
                 )
 
@@ -812,7 +813,7 @@ def main():
                     'Depth Offset (mm)',
                     min_value=50, max_value=200,
                     value=int(default_params["Keyboards"][11]["keyboard_depth_offset_g"]),
-                    step=5,
+                    step=5, key="inline_kbd_depth_offset",
                     help="How much each higher manual is stepped back"
                 )
 
@@ -820,18 +821,18 @@ def main():
                     'Y Offset from Front (mm)',
                     min_value=-200, max_value=200,
                     value=int(default_params["Keyboards"][12]["keyboard_y_offset_g"]),
-                    step=10,
+                    step=10, key="inline_kbd_y_offset",
                     help="Offset from front edge"
                 )
 
         # BENCH SECTION (Bench only)
         if console_type == "bench":
-            with st.expander("Bench Dimensions", expanded=False):
+            with st.expander("Bench Dimensions", expanded=True):
                 bench_depth = st.slider(
                     'Bench Depth (mm)',
                     min_value=250, max_value=500,
                     value=default_params["Bench"][0]["bench_depth_g"],
-                    step=25,
+                    step=25, key="bench_depth",
                     help="Depth of the bench"
                 )
 
@@ -839,7 +840,7 @@ def main():
                     'Bench Height (mm)',
                     min_value=400, max_value=800,
                     value=default_params["Bench"][1]["bench_height_g"],
-                    step=50,
+                    step=50, key="bench_height",
                     help="Height of the bench"
                 )
 
@@ -847,7 +848,7 @@ def main():
                     'Bench Length (mm)',
                     min_value=600, max_value=1200,
                     value=default_params["Bench"][2]["bench_length_g"],
-                    step=50,
+                    step=50, key="bench_length",
                     help="Length of the bench"
                 )
 
@@ -855,7 +856,7 @@ def main():
                     'Bench Shelf Height (mm)',
                     min_value=50, max_value=200,
                     value=default_params["Bench"][3]["bench_shelf_height_g"],
-                    step=10,
+                    step=10, key="bench_shelf_height",
                     help="Height of the internal shelf"
                 )
 
