@@ -1327,14 +1327,20 @@ def main():
     st.session_state[f'last_params_{console_type}'] = parameters
 
     # ── Presets ───────────────────────────────────────────────────────────────
-    with st.expander("Presets", expanded=False):
-        preset_name = st.text_input("Name", value="my_organ", key="preset_name_input")
-        col_save, col_load = st.columns(2)
-        with col_save:
-            preset_json = json.dumps({"name": preset_name, "console_type": console_type, "parameters": parameters}, indent=2)
-            st.download_button("💾 Save Preset", data=preset_json, file_name=f"{preset_name}.json", mime="application/json", use_container_width=True)
-        with col_load:
-            st.file_uploader("Load Preset", type="json", key="preset_uploader", label_visibility="collapsed")
+    st.divider()
+    st.subheader("Presets")
+    st.markdown("""<style>
+    section[data-testid="stFileUploaderDropzone"]{padding:0;border:none;background:transparent}
+    div[data-testid="stFileUploaderDropzoneInstructions"]{display:none}
+    section[data-testid="stFileUploaderDropzone"] button{width:100%}
+    </style>""", unsafe_allow_html=True)
+    col_name, col_save = st.columns([3, 1])
+    with col_name:
+        preset_name = st.text_input("Preset name", value="my_organ", key="preset_name_input", label_visibility="collapsed")
+    with col_save:
+        preset_json = json.dumps({"name": preset_name, "console_type": console_type, "parameters": parameters}, indent=2)
+        st.download_button("💾 Save", data=preset_json, file_name=f"{preset_name}.json", mime="application/json", use_container_width=True)
+    st.file_uploader("📂 Load Preset", type="json", key="preset_uploader")
 
     # VISUALIZATION SECTION
     console_names = {"normal": "Normal", "vertical": "Vertical", "inline": "Inline", "bench": "Bench", "pedalboard": "Pedalboard"}
