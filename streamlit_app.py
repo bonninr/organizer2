@@ -133,7 +133,7 @@ def main():
             st.caption("Load")
             uploaded = st.file_uploader("Load", type="json", key="preset_uploader",
                                         label_visibility="collapsed")
-        st.caption(f"DBG uploaded={'yes' if uploaded else 'no'} hash={st.session_state.get('_last_preset_hash','none')}")
+        st.caption(f"DBG uploaded={'yes' if uploaded else 'no'} hash={st.session_state.get('_last_preset_hash','none')} inline_w={st.session_state.get('inline_organ_width','?')} pending={st.session_state.get('_pending_console_type','?')}")
         if uploaded is not None:
             content = uploaded.getvalue()
             content_hash = hash(content)
