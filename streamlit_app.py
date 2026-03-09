@@ -98,6 +98,10 @@ def main():
         initial_sidebar_state='expanded'
     )
 
+    # Apply pending console type before radio renders
+    if "_pending_console_type" in st.session_state:
+        st.session_state["console_type"] = st.session_state.pop("_pending_console_type")
+
     # SIDEBAR - CONSOLE TYPE SELECTION
     with st.sidebar:
         st.title("Organ Console Designer")
@@ -181,7 +185,7 @@ def main():
                     }
 
                     st.session_state["_last_preset_hash"] = content_hash
-                    st.session_state["console_type"] = pct
+                    st.session_state["_pending_console_type"] = pct
                     if pct in _WIDGET_KEYS:
                         for pk, wk in _WIDGET_KEYS[pct].items():
                             if pk in flat:
@@ -190,7 +194,7 @@ def main():
                         # normal/vertical/pedalboard: clear widget state, use _preset_params
                         preserve = {
                             "_last_preset_hash": content_hash,
-                            "console_type": pct,
+                            "_pending_console_type": pct,
                             "_preset_params": preset_data["parameters"],
                             "_preset_type": pct,
                         }
