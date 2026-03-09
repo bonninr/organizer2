@@ -62,7 +62,8 @@ def get_default_parameters():
             {"keyboard_base_thickness_g": 10},       # Base plate thickness (mm)
             {"keyboard_vertical_spacing_g": 80},     # Vertical spacing between manuals (mm)
             {"keyboard_depth_offset_g": 130},        # Each higher manual offset back (mm) = key_length - 20
-            {"keyboard_y_offset_g": 0}               # Offset from back of horizontal divider (mm), 0 = keys at front
+            {"keyboard_y_offset_g": 0},              # Offset from back of horizontal divider (mm), 0 = keys at front
+            {"keyboard_initial_height_gap_g": 0}     # Extra height gap below first keyboard (mm), room for a register board
         ]
     }
 
@@ -329,10 +330,11 @@ def generate_console(parameters):
         # To place keyboard at front: back edge at (front_of_divider - kbd_depth)
         # Front of divider is at Y = general_board_thickness_g + top_depth_g
         keyboard_front_y = p.general_board_thickness_g + p.top_depth_g
+        height_gap = getattr(p, 'keyboard_initial_height_gap_g', 0)
         keyboard_position = (
-            -p.general_board_thickness_g - p.organ_internal_width_g / 2 - kbd_width / 2,  # Centered in X
-            keyboard_front_y - kbd_depth + keyboard_y_offset,  # Back edge positioned so front is at divider front (minus any offset)
-            p.base_height_g + p.general_board_thickness_g  # On top of horizontal divider
+            -p.general_board_thickness_g - p.organ_internal_width_g / 2 - kbd_width / 2,
+            keyboard_front_y - kbd_depth + keyboard_y_offset,
+            p.base_height_g + p.general_board_thickness_g + height_gap
         )
 
         keyboard_stack = generate_keyboard_stack(parameters, base_position=keyboard_position)

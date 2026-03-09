@@ -64,7 +64,8 @@ def get_default_parameters():
             {"keyboard_base_thickness_g": 10},
             {"keyboard_vertical_spacing_g": 80},
             {"keyboard_depth_offset_g": 130},
-            {"keyboard_y_offset_g": 0}
+            {"keyboard_y_offset_g": 0},
+            {"keyboard_initial_height_gap_g": 0}
         ]
     }
 
@@ -295,10 +296,11 @@ def generate_console(parameters):
 
     # ── Keyboards ─────────────────────────────────────────────────────────────
     if num_manuals > 0:
+        height_gap = getattr(p, 'keyboard_initial_height_gap_g', 0)
         keyboard_position = (
             -bt - p.organ_internal_width_g / 2 - kbd_width / 2,
             p.table_depth_g - kbd_depth + keyboard_y_offset,
-            p.table_height_g
+            p.table_height_g + height_gap
         )
         keyboard_stack = generate_keyboard_stack(parameters, base_position=keyboard_position)
         parts.append(keyboard_stack)

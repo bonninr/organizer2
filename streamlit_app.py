@@ -18,6 +18,7 @@ The app provides an interactive interface for designing organ consoles with:
 """
 
 import os
+import json
 import tempfile
 import streamlit as st
 import streamlit.components.v1 as components
@@ -37,7 +38,7 @@ from technical_drawing import create_a3_technical_drawing, generate_technical_dr
 
 
 # Cache version - increment to invalidate cache when export logic changes
-_CACHE_VERSION = 21  # v21: Bench gets own General section with only relevant params
+_CACHE_VERSION = 22  # v22: keyboard_initial_height_gap_g added; preset export button
 
 @st.cache_data
 def generate_and_export_console_cached(
@@ -105,8 +106,29 @@ def main():
             "Console Type",
             options=["normal", "vertical", "inline", "bench", "pedalboard"],
             format_func=lambda x: {"normal": "Normal Console", "vertical": "Vertical Console", "inline": "Inline Console", "bench": "Bench Console", "pedalboard": "Pedalboard"}[x],
-            help="Select the type of organ console to design"
+            help="Select the type of organ console to design",
+            key="console_type"
         )
+
+        # ── Presets ───────────────────────────────────────────────────────────
+        with st.expander("Presets", expanded=False):
+            preset_name = st.text_input("Preset name", value="my_organ")
+
+            # Import: load a saved preset JSON
+            uploaded = st.file_uploader("Load preset", type="json", label_visibility="collapsed")
+            if uploaded is not None:
+                try:
+                    preset_data = json.loads(uploaded.read())
+                    # Clear all widget state so sliders reinitialise from preset values
+                    preset_keys = {k: v for k, v in st.session_state.items() if k.startswith("_preset_")}
+                    st.session_state.clear()
+                    st.session_state.update(preset_keys)
+                    st.session_state["console_type"] = preset_data["console_type"]
+                    st.session_state["_preset_params"] = preset_data["parameters"]
+                    st.session_state["_preset_type"] = preset_data["console_type"]
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Failed to load preset: {e}")
 
         # COMBINED VIEW (only for normal/vertical/inline consoles)
         if console_type in ["normal", "vertical", "inline"]:
@@ -121,8 +143,12 @@ def main():
         # PARAMETERS SECTION
         st.header("Parameters")
 
-        # Initialize parameters based on console type
-        if console_type == "normal":
+        # Initialize parameters — use loaded preset if one was just imported
+        if ("_preset_params" in st.session_state
+                and st.session_state.get("_preset_type") == console_type):
+            default_params = st.session_state.pop("_preset_params")
+            st.session_state.pop("_preset_type", None)
+        elif console_type == "normal":
             default_params = console_normal.get_default_parameters()
         elif console_type == "vertical":
             default_params = console_vertical.get_default_parameters()
@@ -642,6 +668,14 @@ def main():
                     help="Offset from front edge (0 = keys at front, negative = keys extend past front)"
                 )
 
+                keyboard_height_gap = st.slider(
+                    'Initial Height Gap (mm)',
+                    min_value=0, max_value=200,
+                    value=int(default_params["Keyboards"][13]["keyboard_initial_height_gap_g"]),
+                    step=5,
+                    help="Extra height below first keyboard (e.g. for a register board)"
+                )
+
         # INLINE CONSOLE SECTIONS
         if console_type == "inline":
             with st.expander("General & Base", expanded=True):
@@ -832,6 +866,14 @@ def main():
                     value=int(default_params["Keyboards"][12]["keyboard_y_offset_g"]),
                     step=10, key="inline_kbd_y_offset",
                     help="Offset from front edge"
+                )
+
+                inline_keyboard_height_gap = st.slider(
+                    'Initial Height Gap (mm)',
+                    min_value=0, max_value=200,
+                    value=int(default_params["Keyboards"][13]["keyboard_initial_height_gap_g"]),
+                    step=5, key="inline_kbd_height_gap",
+                    help="Extra height below first keyboard (e.g. for a register board)"
                 )
 
         # BENCH SECTION (Bench only)
@@ -1179,7 +1221,8 @@ def main():
                 {"keyboard_base_thickness_g": 10},
                 {"keyboard_vertical_spacing_g": inline_keyboard_vertical_spacing},
                 {"keyboard_depth_offset_g": inline_keyboard_depth_offset},
-                {"keyboard_y_offset_g": inline_keyboard_y_offset}
+                {"keyboard_y_offset_g": inline_keyboard_y_offset},
+                {"keyboard_initial_height_gap_g": inline_keyboard_height_gap}
             ],
             "Display": [
                 {"show_dimensions_g": show_dimensions}
@@ -1220,7 +1263,8 @@ def main():
                 {"keyboard_base_thickness_g": 10},       # Standard, not exposed in UI
                 {"keyboard_vertical_spacing_g": keyboard_vertical_spacing},
                 {"keyboard_depth_offset_g": keyboard_depth_offset},
-                {"keyboard_y_offset_g": keyboard_y_offset}
+                {"keyboard_y_offset_g": keyboard_y_offset},
+                {"keyboard_initial_height_gap_g": keyboard_height_gap}
             ],
             "Display": [
                 {"show_dimensions_g": show_dimensions}
@@ -1282,6 +1326,17 @@ def main():
 
     # Persist parameters in session state so combined view can use last-configured values
     st.session_state[f'last_params_{console_type}'] = parameters
+
+    # Export preset — download button inside the Presets expander context is not possible after
+    # parameters are built, so we place it in the sidebar directly below the expander.
+    preset_json = json.dumps({"name": preset_name, "console_type": console_type, "parameters": parameters}, indent=2)
+    st.download_button(
+        label="Save Preset",
+        data=preset_json,
+        file_name=f"{preset_name}.json",
+        mime="application/json",
+        help="Download current parameters as a JSON preset file"
+    )
 
     # VISUALIZATION SECTION
     console_names = {"normal": "Normal", "vertical": "Vertical", "inline": "Inline", "bench": "Bench", "pedalboard": "Pedalboard"}
