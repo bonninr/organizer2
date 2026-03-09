@@ -117,7 +117,7 @@ def main():
         </style>""", unsafe_allow_html=True)
         with st.expander("Presets", expanded=False):
             st.caption("Save")
-            col_name, col_save = st.columns([3, 1])
+            col_name, col_save = st.columns([2, 1])
             with col_name:
                 preset_name = st.text_input("Name", value="my_organ", key="preset_name_input",
                                             max_chars=24, label_visibility="collapsed")
@@ -125,7 +125,7 @@ def main():
                 _saved = st.session_state.get(f'last_params_{console_type}', {})
                 _preset_json = json.dumps({"name": preset_name, "console_type": console_type, "parameters": _saved}, indent=2)
                 st.download_button("💾 Save", data=_preset_json, file_name=f"{preset_name}.json",
-                                   mime="application/json", use_container_width=True)
+                                   mime="application/json")
             st.caption("Load")
             uploaded = st.file_uploader("Load", type="json", key="preset_uploader",
                                         label_visibility="collapsed")
