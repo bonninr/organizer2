@@ -110,17 +110,16 @@ def main():
             key="console_type"
         )
 
-        # ── Presets ───────────────────────────────────────────────────────────
-        with st.expander("Presets", expanded=False):
-            preset_name = st.text_input("Preset name", value="my_organ")
-
-            # Import: load a saved preset JSON
-            uploaded = st.file_uploader("Load preset", type="json", label_visibility="collapsed")
-            if uploaded is not None:
+        # ── Preset import — processed early so default_params can be overridden ──
+        uploaded = st.session_state.get("preset_uploader")
+        if uploaded is not None:
+            content = uploaded.getvalue()
+            content_hash = hash(content)
+            if st.session_state.get("_last_preset_hash") != content_hash:
                 try:
-                    preset_data = json.loads(uploaded.read())
-                    # Clear all widget state so sliders reinitialise from preset values
-                    preset_keys = {k: v for k, v in st.session_state.items() if k.startswith("_preset_")}
+                    preset_data = json.loads(content)
+                    st.session_state["_last_preset_hash"] = content_hash
+                    preset_keys = {k: v for k, v in st.session_state.items() if k.startswith("_preset_") or k == "_last_preset_hash"}
                     st.session_state.clear()
                     st.session_state.update(preset_keys)
                     st.session_state["console_type"] = preset_data["console_type"]
@@ -1327,16 +1326,15 @@ def main():
     # Persist parameters in session state so combined view can use last-configured values
     st.session_state[f'last_params_{console_type}'] = parameters
 
-    # Export preset — download button inside the Presets expander context is not possible after
-    # parameters are built, so we place it in the sidebar directly below the expander.
-    preset_json = json.dumps({"name": preset_name, "console_type": console_type, "parameters": parameters}, indent=2)
-    st.download_button(
-        label="Save Preset",
-        data=preset_json,
-        file_name=f"{preset_name}.json",
-        mime="application/json",
-        help="Download current parameters as a JSON preset file"
-    )
+    # ── Presets ───────────────────────────────────────────────────────────────
+    with st.expander("Presets", expanded=False):
+        preset_name = st.text_input("Name", value="my_organ", key="preset_name_input")
+        col_save, col_load = st.columns(2)
+        with col_save:
+            preset_json = json.dumps({"name": preset_name, "console_type": console_type, "parameters": parameters}, indent=2)
+            st.download_button("💾 Save Preset", data=preset_json, file_name=f"{preset_name}.json", mime="application/json", use_container_width=True)
+        with col_load:
+            st.file_uploader("Load Preset", type="json", key="preset_uploader", label_visibility="collapsed")
 
     # VISUALIZATION SECTION
     console_names = {"normal": "Normal", "vertical": "Vertical", "inline": "Inline", "bench": "Bench", "pedalboard": "Pedalboard"}
