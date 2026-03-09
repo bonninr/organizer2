@@ -137,6 +137,7 @@ def main():
             content = uploaded.getvalue()
             content_hash = hash(content)
             if st.session_state.get("_last_preset_hash") != content_hash:
+                _load_error = None
                 try:
                     preset_data = json.loads(content)
                     pct = preset_data["console_type"]
@@ -145,7 +146,6 @@ def main():
                         for item in section_list:
                             flat.update(item)
 
-                    # Widget key maps for console types that use explicit keys
                     _WIDGET_KEYS = {
                         "inline": {
                             "organ_internal_width_g": "inline_organ_width",
@@ -191,7 +191,6 @@ def main():
                             if pk in flat:
                                 st.session_state[wk] = flat[pk]
                     else:
-                        # normal/vertical/pedalboard: clear widget state, use _preset_params
                         preserve = {
                             "_last_preset_hash": content_hash,
                             "_pending_console_type": pct,
@@ -200,9 +199,12 @@ def main():
                         }
                         st.session_state.clear()
                         st.session_state.update(preserve)
-                    st.rerun()
                 except Exception as e:
-                    st.error(f"Failed to load preset: {e}")
+                    _load_error = str(e)
+                if _load_error:
+                    st.error(f"Failed to load preset: {_load_error}")
+                else:
+                    st.rerun()
 
         st.divider()
 
