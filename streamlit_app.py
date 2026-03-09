@@ -133,80 +133,81 @@ def main():
             st.caption("Load")
             uploaded = st.file_uploader("Load", type="json", key="preset_uploader",
                                         label_visibility="collapsed")
-        st.caption(f"DBG uploaded={'yes' if uploaded else 'no'} hash={st.session_state.get('_last_preset_hash','none')} inline_w={st.session_state.get('inline_organ_width','?')} pending={st.session_state.get('_pending_console_type','?')}")
-        if uploaded is not None:
-            content = uploaded.getvalue()
-            content_hash = hash(content)
-            st.caption(f"DBG content_hash={content_hash}")
-            if st.session_state.get("_last_preset_hash") != content_hash:
-                _load_error = None
-                try:
-                    preset_data = json.loads(content)
-                    pct = preset_data["console_type"]
-                    flat = {}
-                    for section_list in preset_data["parameters"].values():
-                        for item in section_list:
-                            flat.update(item)
+        if uploaded is not None and not st.session_state.get("_preset_applied"):
+            _load_error = None
+            try:
+                preset_data = json.loads(uploaded.getvalue())
+                pct = preset_data["console_type"]
+                flat = {}
+                for section_list in preset_data["parameters"].values():
+                    for item in section_list:
+                        flat.update(item)
 
-                    _WIDGET_KEYS = {
-                        "inline": {
-                            "organ_internal_width_g": "inline_organ_width",
-                            "general_board_thickness_g": "inline_board_thickness",
-                            "total_height_g": "inline_total_height",
-                            "console_depth_g": "inline_console_depth",
-                            "base_front_distance_g": "inline_base_front_distance",
-                            "table_height_g": "inline_table_height",
-                            "table_depth_g": "inline_table_depth",
-                            "table_cheek_height_g": "inline_cheek_height",
-                            "fill_notch_g": "inline_fill_notch",
-                            "fill_notch_start_depth_g": "inline_notch_start",
-                            "fill_notch_front_width_g": "inline_notch_front_width",
-                            "volume_pedals_width_g": "inline_pedal_width",
-                            "volume_pedals_height_g": "inline_pedal_height",
-                            "volume_pedals_number_g": "inline_pedal_number",
-                            "volume_pedals_spacing_g": "inline_pedal_spacing",
-                            "volume_pedals_hole_start_height_g": "inline_pedal_hole_height",
-                            "keyboard_num_manuals_g": "inline_kbd_manuals",
-                            "keyboard_total_keys_g": "inline_kbd_total_keys",
-                            "keyboard_total_width_g": "inline_kbd_width",
-                            "keyboard_white_key_length_g": "inline_kbd_white_key_len",
-                            "keyboard_vertical_spacing_g": "inline_kbd_v_spacing",
-                            "keyboard_depth_offset_g": "inline_kbd_depth_offset",
-                            "keyboard_y_offset_g": "inline_kbd_y_offset",
-                            "keyboard_initial_height_gap_g": "inline_kbd_height_gap",
-                        },
-                        "bench": {
-                            "bench_depth_g": "bench_depth",
-                            "bench_height_g": "bench_height",
-                            "bench_length_g": "bench_length",
-                            "bench_shelf_height_g": "bench_shelf_height",
-                            "general_board_thickness_g": "bench_board_thickness",
-                            "general_board_offset_g": "bench_board_offset",
-                            "general_feet_thickness_g": "bench_feet_thickness",
-                        },
-                    }
+                _WIDGET_KEYS = {
+                    "inline": {
+                        "organ_internal_width_g": "inline_organ_width",
+                        "general_board_thickness_g": "inline_board_thickness",
+                        "total_height_g": "inline_total_height",
+                        "console_depth_g": "inline_console_depth",
+                        "base_front_distance_g": "inline_base_front_distance",
+                        "table_height_g": "inline_table_height",
+                        "table_depth_g": "inline_table_depth",
+                        "table_cheek_height_g": "inline_cheek_height",
+                        "fill_notch_g": "inline_fill_notch",
+                        "fill_notch_start_depth_g": "inline_notch_start",
+                        "fill_notch_front_width_g": "inline_notch_front_width",
+                        "volume_pedals_width_g": "inline_pedal_width",
+                        "volume_pedals_height_g": "inline_pedal_height",
+                        "volume_pedals_number_g": "inline_pedal_number",
+                        "volume_pedals_spacing_g": "inline_pedal_spacing",
+                        "volume_pedals_hole_start_height_g": "inline_pedal_hole_height",
+                        "keyboard_num_manuals_g": "inline_kbd_manuals",
+                        "keyboard_total_keys_g": "inline_kbd_total_keys",
+                        "keyboard_total_width_g": "inline_kbd_width",
+                        "keyboard_white_key_length_g": "inline_kbd_white_key_len",
+                        "keyboard_vertical_spacing_g": "inline_kbd_v_spacing",
+                        "keyboard_depth_offset_g": "inline_kbd_depth_offset",
+                        "keyboard_y_offset_g": "inline_kbd_y_offset",
+                        "keyboard_initial_height_gap_g": "inline_kbd_height_gap",
+                    },
+                    "bench": {
+                        "bench_depth_g": "bench_depth",
+                        "bench_height_g": "bench_height",
+                        "bench_length_g": "bench_length",
+                        "bench_shelf_height_g": "bench_shelf_height",
+                        "general_board_thickness_g": "bench_board_thickness",
+                        "general_board_offset_g": "bench_board_offset",
+                        "general_feet_thickness_g": "bench_feet_thickness",
+                    },
+                }
 
-                    st.session_state["_last_preset_hash"] = content_hash
-                    st.session_state["_pending_console_type"] = pct
-                    if pct in _WIDGET_KEYS:
-                        for pk, wk in _WIDGET_KEYS[pct].items():
-                            if pk in flat:
-                                st.session_state[wk] = flat[pk]
-                    else:
-                        preserve = {
-                            "_last_preset_hash": content_hash,
-                            "_pending_console_type": pct,
-                            "_preset_params": preset_data["parameters"],
-                            "_preset_type": pct,
-                        }
-                        st.session_state.clear()
-                        st.session_state.update(preserve)
-                except Exception as e:
-                    _load_error = str(e)
-                if _load_error:
-                    st.error(f"Failed to load preset: {_load_error}")
+                st.session_state["_preset_applied"] = True
+                if pct in _WIDGET_KEYS:
+                    # Same-type or known-key type: set keys directly, no rerun needed —
+                    # sliders render after this block and will pick up the new values.
+                    for pk, wk in _WIDGET_KEYS[pct].items():
+                        if pk in flat:
+                            st.session_state[wk] = flat[pk]
+                    if pct != console_type:
+                        st.session_state["_pending_console_type"] = pct
                 else:
-                    st.rerun()
+                    # normal/vertical/pedalboard: use _preset_params + rerun
+                    preserve = {
+                        "_preset_applied": True,
+                        "_pending_console_type": pct,
+                        "_preset_params": preset_data["parameters"],
+                        "_preset_type": pct,
+                    }
+                    st.session_state.clear()
+                    st.session_state.update(preserve)
+            except Exception as e:
+                _load_error = str(e)
+            if _load_error:
+                st.error(f"Failed to load preset: {_load_error}")
+            elif pct != console_type or pct not in _WIDGET_KEYS:
+                st.rerun()
+        elif uploaded is None:
+            st.session_state.pop("_preset_applied", None)
 
         st.divider()
 
