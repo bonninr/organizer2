@@ -1341,8 +1341,6 @@ def main():
     st.session_state[f'last_params_{console_type}'] = parameters
 
     # VISUALIZATION SECTION
-    console_names = {"normal": "Normal", "vertical": "Vertical", "inline": "Inline", "bench": "Bench", "pedalboard": "Pedalboard"}
-    st.header(f"{console_names[console_type]} Console Preview")
 
     # Initialize variables
     file_path_gltf = None
