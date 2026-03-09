@@ -114,21 +114,25 @@ def main():
         st.markdown("""<style>
         section[data-testid="stFileUploaderDropzone"]{padding:0;border:none;background:transparent}
         div[data-testid="stFileUploaderDropzoneInstructions"]{display:none}
-        section[data-testid="stFileUploaderDropzone"] button{width:100%}
+        div[data-testid="stDownloadButton"] button,
+        section[data-testid="stFileUploaderDropzone"] button{
+            padding:0.15rem 0.5rem;font-size:0.82rem;width:100%}
+        section[data-testid="stFileUploaderDropzone"] button span{display:none}
+        section[data-testid="stFileUploaderDropzone"] button::after{content:"📂  Load"}
         </style>""", unsafe_allow_html=True)
         with st.expander("Presets", expanded=False):
-            col_name, col_save = st.columns([2, 1])
+            col_name, col_save = st.columns([1, 1.5])
             with col_name:
                 preset_name = st.text_input("Name", value="my_organ", key="preset_name_input",
                                             max_chars=8, label_visibility="collapsed")
             with col_save:
                 _saved = st.session_state.get(f'last_params_{console_type}', {})
                 _preset_json = json.dumps({"name": preset_name, "console_type": console_type, "parameters": _saved}, indent=2)
-                st.download_button("💾 Save", data=_preset_json, file_name=f"{preset_name}.json",
+                st.download_button("💾  Save", data=_preset_json, file_name=f"{preset_name}.json",
                                    mime="application/json", use_container_width=True)
-            col_label, col_load = st.columns([2, 1])
+            col_label, col_load = st.columns([1, 1.5])
             with col_label:
-                st.write("Load preset:")
+                st.write("Load:")
             with col_load:
                 uploaded = st.file_uploader("Load", type="json", key="preset_uploader",
                                             label_visibility="collapsed")
