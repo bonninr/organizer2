@@ -133,9 +133,11 @@ def main():
             st.caption("Load")
             uploaded = st.file_uploader("Load", type="json", key="preset_uploader",
                                         label_visibility="collapsed")
+        st.caption(f"DBG uploaded={'yes' if uploaded else 'no'} hash={st.session_state.get('_last_preset_hash','none')}")
         if uploaded is not None:
             content = uploaded.getvalue()
             content_hash = hash(content)
+            st.caption(f"DBG content_hash={content_hash}")
             if st.session_state.get("_last_preset_hash") != content_hash:
                 _load_error = None
                 try:
