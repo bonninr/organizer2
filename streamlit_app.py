@@ -110,8 +110,20 @@ def main():
             key="console_type"
         )
 
-        # ── Preset import — processed early so default_params can be overridden ──
-        uploaded = st.session_state.get("preset_uploader")
+        # ── Presets ───────────────────────────────────────────────────────────
+        st.markdown("""<style>
+        section[data-testid="stFileUploaderDropzone"]{padding:0;border:none;background:transparent}
+        div[data-testid="stFileUploaderDropzoneInstructions"]{display:none}
+        section[data-testid="stFileUploaderDropzone"] button{width:100%}
+        </style>""", unsafe_allow_html=True)
+        col_name, col_save = st.columns([3, 1])
+        with col_name:
+            preset_name = st.text_input("Preset name", value="my_organ", key="preset_name_input", label_visibility="collapsed")
+        with col_save:
+            _saved = st.session_state.get(f'last_params_{console_type}', {})
+            _preset_json = json.dumps({"name": preset_name, "console_type": console_type, "parameters": _saved}, indent=2)
+            st.download_button("💾 Save", data=_preset_json, file_name=f"{preset_name}.json", mime="application/json", use_container_width=True)
+        uploaded = st.file_uploader("📂 Load Preset", type="json", key="preset_uploader")
         if uploaded is not None:
             content = uploaded.getvalue()
             content_hash = hash(content)
@@ -128,6 +140,8 @@ def main():
                     st.rerun()
                 except Exception as e:
                     st.error(f"Failed to load preset: {e}")
+
+        st.divider()
 
         # COMBINED VIEW (only for normal/vertical/inline consoles)
         if console_type in ["normal", "vertical", "inline"]:
@@ -1325,22 +1339,6 @@ def main():
 
     # Persist parameters in session state so combined view can use last-configured values
     st.session_state[f'last_params_{console_type}'] = parameters
-
-    # ── Presets ───────────────────────────────────────────────────────────────
-    st.divider()
-    st.subheader("Presets")
-    st.markdown("""<style>
-    section[data-testid="stFileUploaderDropzone"]{padding:0;border:none;background:transparent}
-    div[data-testid="stFileUploaderDropzoneInstructions"]{display:none}
-    section[data-testid="stFileUploaderDropzone"] button{width:100%}
-    </style>""", unsafe_allow_html=True)
-    col_name, col_save = st.columns([3, 1])
-    with col_name:
-        preset_name = st.text_input("Preset name", value="my_organ", key="preset_name_input", label_visibility="collapsed")
-    with col_save:
-        preset_json = json.dumps({"name": preset_name, "console_type": console_type, "parameters": parameters}, indent=2)
-        st.download_button("💾 Save", data=preset_json, file_name=f"{preset_name}.json", mime="application/json", use_container_width=True)
-    st.file_uploader("📂 Load Preset", type="json", key="preset_uploader")
 
     # VISUALIZATION SECTION
     console_names = {"normal": "Normal", "vertical": "Vertical", "inline": "Inline", "bench": "Bench", "pedalboard": "Pedalboard"}
