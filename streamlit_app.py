@@ -124,7 +124,7 @@ def main():
             with col_save:
                 _saved = st.session_state.get(f'last_params_{console_type}', {})
                 _preset_json = json.dumps({"name": preset_name, "console_type": console_type, "parameters": _saved}, indent=2)
-                st.download_button("💾 Save", data=_preset_json, file_name=f"{preset_name}.json",
+                st.download_button("Save", data=_preset_json, file_name=f"{preset_name}.json",
                                    mime="application/json")
             st.caption("Load")
             uploaded = st.file_uploader("Load", type="json", key="preset_uploader",
