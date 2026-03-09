@@ -116,14 +116,22 @@ def main():
         div[data-testid="stFileUploaderDropzoneInstructions"]{display:none}
         section[data-testid="stFileUploaderDropzone"] button{width:100%}
         </style>""", unsafe_allow_html=True)
-        col_name, col_save = st.columns([3, 1])
-        with col_name:
-            preset_name = st.text_input("Preset name", value="my_organ", key="preset_name_input", label_visibility="collapsed")
-        with col_save:
-            _saved = st.session_state.get(f'last_params_{console_type}', {})
-            _preset_json = json.dumps({"name": preset_name, "console_type": console_type, "parameters": _saved}, indent=2)
-            st.download_button("💾 Save", data=_preset_json, file_name=f"{preset_name}.json", mime="application/json", use_container_width=True)
-        uploaded = st.file_uploader("📂 Load Preset", type="json", key="preset_uploader")
+        with st.expander("Presets", expanded=False):
+            col_name, col_save = st.columns([2, 1])
+            with col_name:
+                preset_name = st.text_input("Name", value="my_organ", key="preset_name_input",
+                                            max_chars=8, label_visibility="collapsed")
+            with col_save:
+                _saved = st.session_state.get(f'last_params_{console_type}', {})
+                _preset_json = json.dumps({"name": preset_name, "console_type": console_type, "parameters": _saved}, indent=2)
+                st.download_button("💾 Save", data=_preset_json, file_name=f"{preset_name}.json",
+                                   mime="application/json", use_container_width=True)
+            col_label, col_load = st.columns([2, 1])
+            with col_label:
+                st.write("Load preset:")
+            with col_load:
+                uploaded = st.file_uploader("Load", type="json", key="preset_uploader",
+                                            label_visibility="collapsed")
         if uploaded is not None:
             content = uploaded.getvalue()
             content_hash = hash(content)
