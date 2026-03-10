@@ -266,9 +266,9 @@ def main():
         elif console_type == "inline":
             default_params = console_inline.get_default_parameters()
         elif console_type == "bench":
-            default_params = console_bench.get_default_parameters()
+            default_params = st.session_state.get('last_params_bench', console_bench.get_default_parameters())
         else:  # pedalboard
-            default_params = console_pedalboard.get_default_parameters()
+            default_params = st.session_state.get('last_params_pedalboard', console_pedalboard.get_default_parameters())
 
         # GENERAL SECTION (Pedalboard only)
         if console_type == "pedalboard":
