@@ -146,6 +146,7 @@ def _apply_preset_callback():
         st.session_state["_preset_applied"] = True
         st.session_state["_pending_console_type"] = pct
 
+        # Apply main console params
         if pct in _PRESET_WIDGET_KEYS:
             for pk, wk in _PRESET_WIDGET_KEYS[pct].items():
                 if pk in flat:
@@ -159,6 +160,23 @@ def _apply_preset_callback():
             }
             st.session_state.clear()
             st.session_state.update(preserve)
+
+        # Apply bench params (widget keys + last_params for combined view)
+        if "bench_parameters" in preset_data:
+            bench_flat = {}
+            for section_list in preset_data["bench_parameters"].values():
+                for item in section_list:
+                    bench_flat.update(item)
+            for pk, wk in _PRESET_WIDGET_KEYS["bench"].items():
+                if pk in bench_flat:
+                    st.session_state[wk] = bench_flat[pk]
+            st.session_state["last_params_bench"] = preset_data["bench_parameters"]
+
+        # Apply pedalboard params (store for combined view + for pedalboard tab)
+        if "pedalboard_parameters" in preset_data:
+            st.session_state["last_params_pedalboard"] = preset_data["pedalboard_parameters"]
+            st.session_state["_preset_params_pedalboard"] = preset_data["pedalboard_parameters"]
+
     except Exception as e:
         st.session_state["_preset_error"] = str(e)
 
@@ -202,7 +220,14 @@ def main():
                                             max_chars=24, label_visibility="collapsed")
             with col_save:
                 _saved = st.session_state.get(f'last_params_{console_type}', {})
-                _preset_json = json.dumps({"name": preset_name, "console_type": console_type, "parameters": _saved}, indent=2)
+                _preset_obj = {
+                    "name": preset_name,
+                    "console_type": console_type,
+                    "parameters": _saved,
+                    "bench_parameters": st.session_state.get('last_params_bench', {}),
+                    "pedalboard_parameters": st.session_state.get('last_params_pedalboard', {}),
+                }
+                _preset_json = json.dumps(_preset_obj, indent=2)
                 st.download_button("Save", data=_preset_json, file_name=f"{preset_name}.json",
                                    mime="application/json")
             st.caption("Load")
@@ -232,6 +257,8 @@ def main():
                 and st.session_state.get("_preset_type") == console_type):
             default_params = st.session_state.pop("_preset_params")
             st.session_state.pop("_preset_type", None)
+        elif console_type == "pedalboard" and "_preset_params_pedalboard" in st.session_state:
+            default_params = st.session_state.pop("_preset_params_pedalboard")
         elif console_type == "normal":
             default_params = console_normal.get_default_parameters()
         elif console_type == "vertical":
