@@ -375,8 +375,11 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                 <input type="range" id="kl" min="0" max="1" step="0.01" value="0.118">
                 <label>Fill lights <span id="flv">0.314</span></label>
                 <input type="range" id="fl" min="0" max="1" step="0.01" value="0.314">
+                <div class="cap-section" style="margin-top:10px;"></div>
+                <button id="export-settings-btn" style="width:100%;margin-top:6px;padding:5px;background:#1e1208;border:1px solid #c8922a;border-radius:5px;color:#c8922a;cursor:pointer;font-size:11px;font-weight:bold;">&#11015; Export settings</button>
               </div>
             </div>
+            <button id="fullscreen-btn" title="Fullscreen" style="position:absolute;bottom:10px;right:10px;z-index:200;background:rgba(10,6,2,0.80);border:1px solid #5a3c10;color:#c8922a;border-radius:6px;padding:5px 9px;cursor:pointer;font-size:14px;line-height:1;">&#x26F6;</button>
             
             <div class="controls">
                 <strong>Controls:</strong><br>
@@ -1068,6 +1071,49 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                 renderer.domElement.addEventListener('mousedown', function() {{ controls.autoRotate = false; }});
                 renderer.domElement.addEventListener('wheel',     function() {{ controls.autoRotate = false; }});
                 renderer.domElement.addEventListener('touchstart',function() {{ controls.autoRotate = false; }});
+
+                // Export settings button
+                document.getElementById('export-settings-btn').addEventListener('click', function() {{
+                    const settings = {{
+                        instrument_texture: document.getElementById('woodTexture').value,
+                        floor_texture:      document.getElementById('floorTexture').value,
+                        grain_scale:        parseFloat(document.getElementById('gs').value),
+                        floor_scale:        parseFloat(document.getElementById('fgs').value),
+                        lacquer:            document.getElementById('lacquer').checked,
+                        roughness:          parseFloat(document.getElementById('rough').value),
+                        clearcoat:          parseFloat(document.getElementById('cc').value),
+                        clearcoat_roughness:parseFloat(document.getElementById('ccr').value),
+                        normal_strength:    parseFloat(document.getElementById('ns').value),
+                        env_intensity:      parseFloat(document.getElementById('emi').value),
+                        floor_roughness:    parseFloat(document.getElementById('fr').value),
+                        floor_clearcoat:    parseFloat(document.getElementById('fcc').value),
+                        floor_cc_roughness: parseFloat(document.getElementById('fccr').value),
+                        exposure:           parseFloat(document.getElementById('expo').value),
+                        key_light:          parseFloat(document.getElementById('kl').value),
+                        fill_lights:        parseFloat(document.getElementById('fl').value),
+                    }};
+                    const blob = new Blob([JSON.stringify(settings, null, 2)], {{type:'application/json'}});
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = 'render_settings.json';
+                    a.click();
+                    URL.revokeObjectURL(a.href);
+                }});
+
+                // Fullscreen button
+                document.getElementById('fullscreen-btn').addEventListener('click', function() {{
+                    const el = document.getElementById('container');
+                    if (!document.fullscreenElement) {{
+                        (el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen).call(el);
+                        this.textContent = '\u26F6';
+                    }} else {{
+                        (document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen).call(document);
+                    }}
+                }});
+                document.addEventListener('fullscreenchange', function() {{
+                    const btn = document.getElementById('fullscreen-btn');
+                    if(btn) btn.textContent = document.fullscreenElement ? '\u2715' : '\u26F6';
+                }});
             }}
 
             // (Export scene as JSON removed)
