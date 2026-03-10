@@ -266,11 +266,31 @@ def main():
         elif console_type == "inline":
             default_params = console_inline.get_default_parameters()
         elif console_type == "bench":
+            default_params = console_bench.get_default_parameters()
             _stored = st.session_state.get('last_params_bench')
-            default_params = _stored if _stored else console_bench.get_default_parameters()
+            if _stored:
+                _flat = {}
+                for _section in _stored.values():
+                    for _item in _section:
+                        _flat.update(_item)
+                for _section in default_params.values():
+                    for _item in _section:
+                        for _k in _item:
+                            if _k in _flat:
+                                _item[_k] = _flat[_k]
         else:  # pedalboard
+            default_params = console_pedalboard.get_default_parameters()
             _stored = st.session_state.get('last_params_pedalboard')
-            default_params = _stored if _stored else console_pedalboard.get_default_parameters()
+            if _stored:
+                _flat = {}
+                for _section in _stored.values():
+                    for _item in _section:
+                        _flat.update(_item)
+                for _section in default_params.values():
+                    for _item in _section:
+                        for _k in _item:
+                            if _k in _flat:
+                                _item[_k] = _flat[_k]
 
         # GENERAL SECTION (Pedalboard only)
         if console_type == "pedalboard":
