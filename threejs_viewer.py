@@ -381,12 +381,9 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                 <button id="export-settings-btn" style="width:100%;margin-top:6px;padding:5px;background:#1e1208;border:1px solid #c8922a;border-radius:5px;color:#c8922a;cursor:pointer;font-size:11px;font-weight:bold;">&#11015; Export settings</button>
               </div>
             </div>
-            <button id="fullscreen-btn" title="Fullscreen" style="position:absolute;bottom:10px;right:10px;z-index:200;background:rgba(10,6,2,0.80);border:1px solid #5a3c10;color:#c8922a;border-radius:6px;padding:5px 9px;cursor:pointer;font-size:14px;line-height:1;">&#x26F6;</button>
-            
-            <div class="controls">
-                <strong>Controls:</strong><br>
-                Mouse: Rotate • Right-click: Pan • Wheel: Zoom<br>
-                A: Auto-rotate • R: Reset view
+            <div class="controls" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                <span><strong>Controls:</strong>&nbsp; Mouse: Rotate &bull; Right-click: Pan &bull; Wheel: Zoom &bull; A: Auto-rotate &bull; R: Reset</span>
+                <button id="fullscreen-btn" title="Fullscreen" style="background:none;border:1px solid #666;color:#ccc;border-radius:5px;padding:3px 7px;cursor:pointer;font-size:13px;line-height:1;flex-shrink:0;">&#x26F6;</button>
             </div>
         </div>
 
