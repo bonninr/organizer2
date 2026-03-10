@@ -252,7 +252,23 @@ def main():
         # PARAMETERS SECTION
         st.header("Parameters")
 
-        # Initialize parameters — use loaded preset if one was just imported
+        def _merge_last_params(base_params, stored_key):
+            """Merge last-used parameter values into base_params structure by key lookup."""
+            stored = st.session_state.get(stored_key)
+            if not stored:
+                return base_params
+            flat = {}
+            for section in stored.values():
+                for item in section:
+                    flat.update(item)
+            for section in base_params.values():
+                for item in section:
+                    for k in item:
+                        if k in flat:
+                            item[k] = flat[k]
+            return base_params
+
+        # Initialize parameters — preset takes priority, then last-used, then module defaults
         if ("_preset_params" in st.session_state
                 and st.session_state.get("_preset_type") == console_type):
             default_params = st.session_state.pop("_preset_params")
@@ -260,37 +276,15 @@ def main():
         elif console_type == "pedalboard" and "_preset_params_pedalboard" in st.session_state:
             default_params = st.session_state.pop("_preset_params_pedalboard")
         elif console_type == "normal":
-            default_params = console_normal.get_default_parameters()
+            default_params = _merge_last_params(console_normal.get_default_parameters(), 'last_params_normal')
         elif console_type == "vertical":
-            default_params = console_vertical.get_default_parameters()
+            default_params = _merge_last_params(console_vertical.get_default_parameters(), 'last_params_vertical')
         elif console_type == "inline":
-            default_params = console_inline.get_default_parameters()
+            default_params = _merge_last_params(console_inline.get_default_parameters(), 'last_params_inline')
         elif console_type == "bench":
-            default_params = console_bench.get_default_parameters()
-            _stored = st.session_state.get('last_params_bench')
-            if _stored:
-                _flat = {}
-                for _section in _stored.values():
-                    for _item in _section:
-                        _flat.update(_item)
-                for _section in default_params.values():
-                    for _item in _section:
-                        for _k in _item:
-                            if _k in _flat:
-                                _item[_k] = _flat[_k]
+            default_params = _merge_last_params(console_bench.get_default_parameters(), 'last_params_bench')
         else:  # pedalboard
-            default_params = console_pedalboard.get_default_parameters()
-            _stored = st.session_state.get('last_params_pedalboard')
-            if _stored:
-                _flat = {}
-                for _section in _stored.values():
-                    for _item in _section:
-                        _flat.update(_item)
-                for _section in default_params.values():
-                    for _item in _section:
-                        for _k in _item:
-                            if _k in _flat:
-                                _item[_k] = _flat[_k]
+            default_params = _merge_last_params(console_pedalboard.get_default_parameters(), 'last_params_pedalboard')
 
         # GENERAL SECTION (Pedalboard only)
         if console_type == "pedalboard":
