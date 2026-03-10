@@ -288,6 +288,8 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
             min-width: 200px;
             color: #ddd;
             line-height: 1.8;
+            max-height: calc(100vh - 80px);
+            overflow-y: auto;
         }}
         #lacquer-panel label {{ display:block; font-size:10px; color:#aaa; margin-top:6px; }}
         #lacquer-panel input[type=range] {{ width:100%; accent-color:#c8922a; margin:1px 0; }}
