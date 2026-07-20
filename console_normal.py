@@ -21,7 +21,8 @@ from utils import DotDict, create_board
 from keyboard import (generate_keyboard_stack, get_keyboard_dimensions,
                       get_keyboard_stack_dimensions, generate_keyboard_cheeks,
                       get_keyboard_cheek_steps, generate_piston_rails,
-                      get_piston_rail_specs)
+                      get_piston_rail_specs, get_cheek_thickness,
+                      get_cheek_layers)
 
 
 def get_knob_stair_specs(parameters):
@@ -64,7 +65,7 @@ def get_knob_stair_specs(parameters):
 
     bt = p.general_board_thickness_g
     kbd_width = get_keyboard_dimensions(parameters)['width']
-    cheek = bt if getattr(p, 'keyboard_cheeks_enabled_g', False) else 0
+    cheek = get_cheek_thickness(parameters, bt)
 
     # Space the table has left either side of the manuals and their cheeks. Out
     # of it comes the gap back to the cheek and a stringer at each end of the
@@ -305,6 +306,7 @@ def get_default_parameters():
             {"keyboard_y_offset_g": 0},              # Offset from back of horizontal divider (mm), 0 = keys at front
             {"keyboard_initial_height_gap_g": 20},   # Lift of the manuals above the table (mm), room for a register board
             {"keyboard_cheeks_enabled_g": True},     # Vertical boards flanking the manuals
+            {"keyboard_cheek_layers_g": 2},          # Boards laminated side by side per cheek
             {"keyboard_cheek_height_g": 35}          # Cheek clearance above each manual; 35 = manual height, so cheeks finish flush with the black keys
         ]
     }
@@ -417,14 +419,17 @@ def generate_board_list(parameters):
         kbd_z = bt + getattr(p, 'keyboard_initial_height_gap_g', 0)
         for n, step in enumerate(get_keyboard_cheek_steps(parameters, (0, 0, kbd_z), bt, cheek_z=0)):
             for side in ("Left", "Right"):
-                board_list.append({
-                    "name": f"{side} Keyboard Cheek Step {n + 1}",
-                    "width": step['depth'],
-                    "height": step['height'],
-                    "thickness": bt,
-                    "description": f"{side} cheek step {n + 1} (manual {n + 1}), "
-                                   f"depth={step['depth']:.0f}mm, height={step['height']:.0f}mm"
-                })
+                # Each cheek is laminated from several boards side by side
+                for layer in range(step['layers']):
+                    board_list.append({
+                        "name": f"{side} Keyboard Cheek Step {n + 1} Board {layer + 1}",
+                        "width": step['depth'],
+                        "height": step['height'],
+                        "thickness": bt,
+                        "description": f"{side} cheek step {n + 1} (manual {n + 1}), "
+                                       f"lamination {layer + 1} of {step['layers']}, "
+                                       f"depth={step['depth']:.0f}mm, height={step['height']:.0f}mm"
+                    })
 
 
     # Combination piston rails - one per manual, holes drilled through the face

@@ -282,6 +282,44 @@ def resolve_depth_offset(parameters):
     return depth_offset
 
 
+def get_cheek_layers(parameters):
+    """
+    Number of boards laminated side by side to make up one cheek.
+
+    Cheeks are usually thicker than a single board, so they are built up from
+    several. Anything that measures across the console has to use the resulting
+    thickness rather than the board thickness.
+
+    Args:
+        parameters: Parameter dictionary
+
+    Returns:
+        int: Board count per cheek, at least 1
+    """
+    p = DotDict(parameters)
+
+    return max(1, int(getattr(p, 'keyboard_cheek_layers_g', 2)))
+
+
+def get_cheek_thickness(parameters, board_thickness):
+    """
+    Overall thickness of one cheek: its board count times the board thickness.
+
+    Args:
+        parameters: Parameter dictionary
+        board_thickness: Thickness of a single board (mm)
+
+    Returns:
+        float: Total cheek thickness in mm, or 0 when cheeks are disabled
+    """
+    p = DotDict(parameters)
+
+    if not getattr(p, 'keyboard_cheeks_enabled_g', False):
+        return 0
+
+    return get_cheek_layers(parameters) * board_thickness
+
+
 def get_keyboard_cheek_steps(parameters, base_position, board_thickness,
                              cheek_z=None, back_y=None, cheek_height=None):
     """
@@ -333,6 +371,7 @@ def get_keyboard_cheek_steps(parameters, base_position, board_thickness,
     kbd_dims = get_keyboard_dimensions(parameters)
     kbd_width = kbd_dims['width']
     kbd_depth = kbd_dims['depth']
+    layers = get_cheek_layers(parameters)
 
     # By default all steps share the back edge of the rearmost (highest) manual
     if back_y is None:
@@ -354,8 +393,11 @@ def get_keyboard_cheek_steps(parameters, base_position, board_thickness,
             'height': height,
             'y': back_y,
             'z': z,
-            'x_left': base_position[0] - board_thickness,
+            # Outermost face of each cheek; the laminations stack inward
+            # from x_left and outward from x_right
+            'x_left': base_position[0] - layers * board_thickness,
             'x_right': base_position[0] + kbd_width,
+            'layers': layers,
         })
         z = top
 
@@ -386,15 +428,17 @@ def generate_keyboard_cheeks(parameters, base_position, board_thickness,
     parts = []
     for step in get_keyboard_cheek_steps(parameters, base_position, board_thickness,
                                          cheek_z, back_y, cheek_height):
-        for x in (step['x_left'], step['x_right']):
-            parts.append(create_board(
-                max_width=step['depth'],
-                max_height=step['height'],
-                board_thickness=board_thickness,
-                position=(x, step['y'], step['z']),
-                rotation=(0, 0, 0),
-                show_dimensions=show_dimensions
-            ))
+        # Each cheek is several boards laminated face to face
+        for x0 in (step['x_left'], step['x_right']):
+            for layer in range(step['layers']):
+                parts.append(create_board(
+                    max_width=step['depth'],
+                    max_height=step['height'],
+                    board_thickness=board_thickness,
+                    position=(x0 + layer * board_thickness, step['y'], step['z']),
+                    rotation=(0, 0, 0),
+                    show_dimensions=show_dimensions
+                ))
 
     return parts
 

@@ -26,7 +26,8 @@ from build123d import *
 from utils import DotDict, create_board
 from keyboard import (generate_keyboard_stack, get_keyboard_dimensions,
                       generate_keyboard_cheeks, get_keyboard_cheek_steps,
-                      generate_piston_rails, get_piston_rail_specs)
+                      generate_piston_rails, get_piston_rail_specs,
+                      get_cheek_layers)
 
 
 def _keyboard_base_position(parameters):
@@ -74,6 +75,7 @@ def get_default_parameters():
             {"table_height_g": 720},
             {"table_depth_g": 550},
             {"keyboard_cheeks_enabled_g": True},  # vertical boards flanking the manuals
+            {"keyboard_cheek_layers_g": 2},       # boards laminated side by side per cheek
             {"table_cheek_height_g": 0},         # extra cheek rise above the black keys
             {"fill_notch_g": False},              # True = full depth with notch, False = short (cabinet depth)
             {"fill_notch_start_depth_g": 350},   # depth from back where notch slant begins (~console_depth - bt)
@@ -192,13 +194,17 @@ def generate_board_list(parameters):
         )
         for n, step in enumerate(steps):
             for side in ("Left", "Right"):
-                board_list.append({
-                    "name": f"{side} Keyboard Cheek Step {n + 1}",
-                    "width": step['depth'], "height": step['height'], "thickness": bt,
-                    "description": f"{side} cheek step {n + 1}, depth={step['depth']:.0f}mm, "
-                                   f"height={step['height']:.0f}mm, flush with manual "
-                                   f"{n + 1} black keys"
-                })
+                # Each cheek is laminated from several boards side by side
+                for layer in range(step['layers']):
+                    board_list.append({
+                        "name": f"{side} Keyboard Cheek Step {n + 1} Board {layer + 1}",
+                        "width": step['depth'], "height": step['height'], "thickness": bt,
+                        "description": f"{side} cheek step {n + 1}, lamination "
+                                       f"{layer + 1} of {step['layers']}, "
+                                       f"depth={step['depth']:.0f}mm, "
+                                       f"height={step['height']:.0f}mm, flush with manual "
+                                       f"{n + 1} black keys"
+                    })
 
 
     # Combination piston rails - one per manual, holes drilled through the face

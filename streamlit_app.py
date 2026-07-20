@@ -562,6 +562,15 @@ def main():
                     help="Height each cheek step rises above its manual"
                 )
 
+                v_cheek_layers = st.slider(
+                    'Cheek Boards (laminations)',
+                    min_value=1, max_value=4,
+                    value=int(_pval(default_params, "Keyboards", "keyboard_cheek_layers_g", 2)),
+                    step=1, key="vertical_cheek_layers",
+                    disabled=not v_keyboard_cheeks_enabled,
+                    help="Boards glued side by side to make up each cheek. More boards means a thicker cheek and less room beside the manuals."
+                )
+
         # SPEAKERS SECTION (Vertical only)
         if console_type == "vertical":
             with st.expander("Speakers", expanded=False):
@@ -1004,6 +1013,15 @@ def main():
                     help="Height each cheek step rises above its manual"
                 )
 
+                cheek_layers = st.slider(
+                    'Cheek Boards (laminations)',
+                    min_value=1, max_value=4,
+                    value=int(_pval(default_params, "Keyboards", "keyboard_cheek_layers_g", 2)),
+                    step=1, key="normal_cheek_layers",
+                    disabled=not keyboard_cheeks_enabled,
+                    help="Boards glued side by side to make up each cheek. More boards means a thicker cheek and less room beside the manuals."
+                )
+
         # INLINE CONSOLE SECTIONS
         if console_type == "inline":
             with st.expander("General & Base", expanded=True):
@@ -1078,6 +1096,15 @@ def main():
                     step=5, key="inline_cheek_height",
                     disabled=not inline_cheeks_enabled,
                     help="0 = each cheek step finishes flush with its own manual's black keys"
+                )
+
+                inline_cheek_layers = st.slider(
+                    'Cheek Boards (laminations)',
+                    min_value=1, max_value=4,
+                    value=int(_pval(default_params, "Table", "keyboard_cheek_layers_g", 2)),
+                    step=1, key="inline_cheek_layers",
+                    disabled=not inline_cheeks_enabled,
+                    help="Boards glued side by side to make up each cheek."
                 )
 
                 inline_fill_notch = st.checkbox(
@@ -1563,7 +1590,8 @@ def main():
                 {"keyboard_depth_offset_g": v_keyboard_depth_offset},
                 {"keyboard_initial_height_gap_g": v_keyboard_height_gap},
                 {"keyboard_cheeks_enabled_g": v_keyboard_cheeks_enabled},
-                {"keyboard_cheek_height_g": v_keyboard_cheek_height}
+                {"keyboard_cheek_height_g": v_keyboard_cheek_height},
+                {"keyboard_cheek_layers_g": v_cheek_layers}
             ],
             "Speakers": [
                 {"front_speaker_width_g": front_speaker_width},
@@ -1608,6 +1636,7 @@ def main():
                 {"table_depth_g": inline_table_depth},
                 {"keyboard_cheeks_enabled_g": inline_cheeks_enabled},
                 {"table_cheek_height_g": inline_table_cheek_height},
+                {"keyboard_cheek_layers_g": inline_cheek_layers},
                 {"fill_notch_g": inline_fill_notch},
                 {"fill_notch_start_depth_g": inline_fill_notch_start},
                 {"fill_notch_front_width_g": inline_fill_notch_front_width}
@@ -1711,7 +1740,8 @@ def main():
                 {"keyboard_y_offset_g": keyboard_y_offset},
                 {"keyboard_initial_height_gap_g": keyboard_height_gap},
                 {"keyboard_cheeks_enabled_g": keyboard_cheeks_enabled},
-                {"keyboard_cheek_height_g": keyboard_cheek_height}
+                {"keyboard_cheek_height_g": keyboard_cheek_height},
+                {"keyboard_cheek_layers_g": cheek_layers}
             ],
             "Display": [
                 {"show_dimensions_g": show_dimensions}
