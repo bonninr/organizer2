@@ -24,6 +24,215 @@ from keyboard import (generate_keyboard_stack, get_keyboard_dimensions,
                       get_piston_rail_specs)
 
 
+def get_knob_stair_specs(parameters):
+    """
+    Calculate the Cavaille-Coll style terraced drawknob jambs.
+
+    A jamb is a staircase standing on the keyboard table, one on each side of
+    the manuals, stepping up and back away from the player. Each step is a
+    vertical riser carrying the drawknob holes plus the horizontal tread behind
+    it. The staircase spans from the front of the keyboard table back to the
+    upper front board, which it finishes against, and that depth is divided
+    evenly between the steps.
+
+    Everything is sized to the space that actually exists: the jamb width is
+    whatever the table has left beside the manuals and their cheeks, and the
+    knob grid is derived from the hole spacing that fits a riser face.
+
+    Args:
+        parameters: Parameter dictionary
+
+    Returns:
+        dict with 'width', 'step_depth', 'step_height', 'steps' and
+        'x_right'/'x_left' (the maximum-X edge of each jamb), or None when the
+        jambs are disabled or do not fit. Each step carries 'riser_z',
+        'front_y', 'tread_depth' and 'holes'.
+    """
+    p = DotDict(parameters)
+
+    if not getattr(p, 'knob_stairs_enabled_g', False):
+        return None
+
+    steps = int(getattr(p, 'knob_stair_steps_g', 4))
+    step_height = getattr(p, 'knob_stair_step_height_g', 70)
+    diameter = getattr(p, 'knob_stair_hole_diameter_g', 25)
+    spacing = getattr(p, 'knob_stair_hole_spacing_g', 55)
+    gap = getattr(p, 'knob_stair_gap_g', 20)
+    front_inset = getattr(p, 'knob_stair_front_inset_g', 20)
+    if steps <= 0 or step_height <= 0:
+        return None
+
+    bt = p.general_board_thickness_g
+    kbd_width = get_keyboard_dimensions(parameters)['width']
+    cheek = bt if getattr(p, 'keyboard_cheeks_enabled_g', False) else 0
+
+    # Space the table has left either side of the manuals and their cheeks. Out
+    # of it comes the gap back to the cheek and a stringer at each end of the
+    # staircase; the terraces span between them. Carrying its own stringer on
+    # both sides rather than leaning on the console's lateral board makes each
+    # staircase a standalone assembly that can be built off the console.
+    side_space = (p.organ_internal_width_g - kbd_width - 2 * cheek) / 2
+    width = side_space - gap
+    # Risers and treads run the full width, covering the stringers at each end.
+    # Knobs can only pass where there is no stringer behind the riser, so the
+    # holes are confined to the clear span between them.
+    clear_span = width - 2 * bt
+    if clear_span <= 0:
+        return None
+
+    # The staircase runs back to the upper front board, which it finishes
+    # against. That board is placed at base_depth_g - thickness and extends
+    # forward, so its front face - and the rear face of the staircase - is at
+    # base_depth_g. At the other end the bottom riser is set back from the table
+    # edge by front_inset, so the terraces stand on the table rather than
+    # finishing flush with its lip. The depth between those two is therefore
+    # determined, not chosen, and is divided evenly between the steps.
+    table_front_y = bt + p.top_depth_g    # front edge of the keyboard table
+    front_y = table_front_y - front_inset
+    back_y = p.base_depth_g               # front face of the upper front board
+    total_depth = front_y - back_y
+    if total_depth <= 0:
+        return None
+
+    step_depth = total_depth / steps
+    tread_depth = step_depth - bt
+    table_top_z = p.base_height_g + bt
+
+    # A hole must leave material all round, or it saws the riser into pieces
+    margin = 2
+    hole_d = min(diameter, step_height - 2 * margin, clear_span - 2 * margin)
+
+    def _grid(y_centre):
+        if hole_d <= 0 or spacing <= 0:
+            return []
+        cols = int((clear_span - hole_d) // spacing) + 1
+        rows = int((step_height - hole_d) // spacing) + 1
+        # Centred on the riser, but only as many columns as clear the stringers
+        return [[width / 2 + (c - (cols - 1) / 2) * spacing,
+                 y_centre + (r - (rows - 1) / 2) * spacing,
+                 hole_d]
+                for r in range(rows) for c in range(cols)]
+
+    step_list = []
+    for i in range(steps):
+        riser_z = table_top_z + i * step_height
+
+        # The tread below stops one thickness short of the next riser, leaving a
+        # slot under every step above the first. Dropping the riser and the
+        # stringer by one thickness closes it, and it also makes consecutive
+        # stringer segments meet so the run becomes continuous.
+        drop = bt if i > 0 else 0
+
+        step_list.append({
+            'riser_z': riser_z,
+            'front_y': front_y - i * step_depth,
+            'tread_depth': tread_depth,
+            # Knobs stay centred on the step face, not on the extended board
+            'holes': _grid(drop + step_height / 2),
+            'riser_z_bottom': riser_z - drop,
+            'riser_height': step_height + drop,
+            # The stringer is inset one thickness at the front so the riser
+            # lands against it, and one at the top so the tread rests on it
+            'closure_depth': total_depth - i * step_depth - bt,
+            'closure_z_bottom': riser_z - drop,
+            'closure_height': step_height - bt + drop,
+        })
+
+    # Terrace bands, running the full width over the stringers
+    x_right = -bt
+    x_left = -(p.organ_internal_width_g + bt) + width
+
+    return {
+        'width': width,
+        'gap': gap,
+        'front_inset': front_inset,
+        'front_y': front_y,
+        'step_depth': step_depth,
+        'step_height': step_height,
+        'tread_depth': tread_depth,
+        'hole_diameter': hole_d,
+        'back_y': back_y,
+        'steps': step_list,
+        'x_right': x_right,                       # terrace max-X edge, right side
+        'x_left': x_left,                         # terrace max-X edge, left side
+        'clear_span': clear_span,
+        # A stringer at each end of both staircases, tucked under the terraces.
+        # Given as min-X faces.
+        'stringer_x': [
+            x_right - width,                      # right, keyboard side
+            x_right - bt,                         # right, console-wall side
+            x_left - bt,                          # left,  keyboard side
+            x_left - width,                       # left,  console-wall side
+        ],
+    }
+
+
+def generate_knob_stairs(parameters, show_dimensions=False):
+    """
+    Generate the terraced drawknob jambs either side of the manuals.
+
+    Args:
+        parameters: Parameter dictionary
+        show_dimensions: Passed through to create_board
+
+    Returns:
+        List of Part objects (empty when the jambs are disabled)
+    """
+    p = DotDict(parameters)
+
+    spec = get_knob_stair_specs(parameters)
+    if spec is None:
+        return []
+
+    bt = p.general_board_thickness_g
+    parts = []
+
+    for x_edge in (spec['x_right'], spec['x_left']):
+        for step in spec['steps']:
+            # Riser: vertical face carrying the drawknobs, looking at the player
+            parts.append(create_board(
+                max_width=spec['width'],
+                max_height=step['riser_height'],
+                board_thickness=bt,
+                position=(x_edge, step['front_y'] - bt, step['riser_z_bottom']),
+                rotation=(0, 0, 90),
+                circular_holes=step['holes'],
+                show_dimensions=show_dimensions
+            ))
+
+            # Tread: horizontal top of the step, running back from the riser
+            if spec['tread_depth'] > 0:
+                parts.append(create_board(
+                    max_width=spec['width'],
+                    max_height=spec['tread_depth'],
+                    board_thickness=bt,
+                    position=(x_edge,
+                              step['front_y'] - bt - spec['tread_depth'],
+                              step['riser_z'] + spec['step_height']),
+                    rotation=(0, 90, 90),
+                    show_dimensions=show_dimensions
+                ))
+
+    # Stringers at both ends of each staircase. They sit inside the structure
+    # and carry it: every riser lands against the stringer's front edge and
+    # every tread sits on its top edge, so the terraces span between the two
+    # and the assembly stands on its own.
+    for closure_x in spec['stringer_x']:
+        for step in spec['steps']:
+            if step['closure_depth'] <= 0 or step['closure_height'] <= 0:
+                continue
+            parts.append(create_board(
+                max_width=step['closure_depth'],
+                max_height=step['closure_height'],
+                board_thickness=bt,
+                position=(closure_x, spec['back_y'], step['closure_z_bottom']),
+                rotation=(0, 0, 0),
+                show_dimensions=show_dimensions
+            ))
+
+    return parts
+
+
 def get_default_parameters():
     """
     Returns the default parameter set for the normal console.
@@ -58,6 +267,15 @@ def get_default_parameters():
             {"carve_depth_g": 30},       # How far the recess eats into the table depth (mm)
             {"carve_slope_g": 40},       # Horizontal run of each diagonal ramp (mm)
             {"carve_offset_g": 0}        # Shift of the recess centre off board centre (mm)
+        ],
+        "Knob_stairs": [
+            {"knob_stairs_enabled_g": True},      # Cavaille-Coll terraced drawknob jambs
+            {"knob_stair_steps_g": 4},            # Number of stair steps
+            {"knob_stair_step_height_g": 70},     # Height of each step (mm)
+            {"knob_stair_hole_diameter_g": 25},   # Drawknob hole diameter (mm)
+            {"knob_stair_hole_spacing_g": 55},    # Centre-to-centre knob spacing (mm)
+            {"knob_stair_gap_g": 20},             # Clear gap between the cheek and the staircase (mm)
+            {"knob_stair_front_inset_g": 20}      # Setback of the bottom riser from the table front edge (mm)
         ],
         "Pistons": [
             {"pistons_enabled_g": True},   # Combination piston rail under each manual
@@ -223,6 +441,42 @@ def generate_board_list(parameters):
                            else f"Piston rail under manual {n + 1}",
             "circular_holes": spec['holes'],
         })
+
+
+    # Cavaille-Coll drawknob jambs - a riser and tread per step, doubled L/R
+    _stairs = get_knob_stair_specs(parameters)
+    if _stairs:
+        bt = p.general_board_thickness_g
+        nholes = len(_stairs['steps'][0]['holes'])
+        for side in ("Left", "Right"):
+            for n, step in enumerate(_stairs['steps']):
+                board_list.append({
+                    "name": f"{side} Knob Stair Riser {n + 1}",
+                    "width": _stairs['width'],
+                    "height": step['riser_height'],
+                    "thickness": bt,
+                    "description": f"{side} drawknob riser {n + 1}, {nholes} holes of "
+                                   f"{_stairs['hole_diameter']:.0f}mm",
+                    "circular_holes": step['holes'],
+                })
+                if _stairs['tread_depth'] > 0:
+                    board_list.append({
+                        "name": f"{side} Knob Stair Tread {n + 1}",
+                        "width": _stairs['width'],
+                        "height": _stairs['tread_depth'],
+                        "thickness": bt,
+                        "description": f"{side} drawknob tread {n + 1}",
+                    })
+                if step['closure_depth'] > 0 and step['closure_height'] > 0:
+                    for end in ("Inner", "Outer"):
+                        board_list.append({
+                            "name": f"{side} Knob Stair {end} Stringer {n + 1}",
+                            "width": step['closure_depth'],
+                            "height": step['closure_height'],
+                            "thickness": bt,
+                            "description": f"{side} staircase {end.lower()} stringer {n + 1}; "
+                                           f"riser lands on its front edge, tread on its top",
+                        })
 
     return board_list
 
@@ -413,6 +667,9 @@ def generate_console(parameters):
             parameters, keyboard_position, p.general_board_thickness_g,
             cheek_z=table_top_z, show_dimensions=show_dims
         ))
+
+        # Terraced drawknob jambs either side of the manuals
+        parts.extend(generate_knob_stairs(parameters, show_dimensions=show_dims))
 
         # Combination piston rail under each manual
         parts.extend(generate_piston_rails(

@@ -797,6 +797,75 @@ def main():
 
         # TABLE CARVE (Normal only)
         if console_type == "normal":
+            with st.expander("Drawknob Stairs", expanded=False):
+                knob_stairs_enabled = st.checkbox(
+                    'Enable Drawknob Stairs',
+                    value=bool(_pval(default_params, "Knob_stairs", "knob_stairs_enabled_g", True)),
+                    key="normal_knob_stairs_enabled",
+                    help="Cavaille-Coll style terraced jambs either side of the manuals, stepping up and back"
+                )
+
+                knob_stair_gap = st.slider(
+                    'Gap from Cheek (mm)',
+                    min_value=0, max_value=100,
+                    value=int(_pval(default_params, "Knob_stairs", "knob_stair_gap_g", 20)),
+                    step=1, key="normal_knob_stair_gap",
+                    disabled=not knob_stairs_enabled,
+                    help="Clear space between the keyboard cheek and the staircase closure panel. The terraces take whatever width is left."
+                )
+
+                knob_stair_front_inset = st.slider(
+                    'Setback from Table Edge (mm)',
+                    min_value=0, max_value=150,
+                    value=int(_pval(default_params, "Knob_stairs", "knob_stair_front_inset_g", 20)),
+                    step=1, key="normal_knob_stair_front_inset",
+                    disabled=not knob_stairs_enabled,
+                    help="How far behind the front edge of the keyboard table the bottom riser starts"
+                )
+
+                knob_stair_steps = st.slider(
+                    'Number of Steps',
+                    min_value=1, max_value=8,
+                    value=int(_pval(default_params, "Knob_stairs", "knob_stair_steps_g", 4)),
+                    step=1, key="normal_knob_stair_steps",
+                    disabled=not knob_stairs_enabled,
+                    help="Steps per jamb; the total depth is divided evenly between them"
+                )
+
+                knob_stair_step_height = st.slider(
+                    'Step Height (mm)',
+                    min_value=30, max_value=150,
+                    value=int(_pval(default_params, "Knob_stairs", "knob_stair_step_height_g", 70)),
+                    step=5, key="normal_knob_stair_step_height",
+                    disabled=not knob_stairs_enabled,
+                    help="Height of each riser. Steps x height must clear the top section."
+                )
+
+                knob_stair_hole_diameter = st.slider(
+                    'Knob Hole Diameter (mm)',
+                    min_value=10, max_value=50,
+                    value=int(_pval(default_params, "Knob_stairs", "knob_stair_hole_diameter_g", 25)),
+                    step=1, key="normal_knob_stair_hole_diameter",
+                    disabled=not knob_stairs_enabled,
+                    help="Shrinks automatically if it would not fit inside a riser"
+                )
+
+                knob_stair_hole_spacing = st.slider(
+                    'Knob Spacing (mm)',
+                    min_value=25, max_value=120,
+                    value=int(_pval(default_params, "Knob_stairs", "knob_stair_hole_spacing_g", 55)),
+                    step=1, key="normal_knob_stair_hole_spacing",
+                    disabled=not knob_stairs_enabled,
+                    help="Centre-to-centre spacing; the knob grid per riser is derived from this"
+                )
+
+                if knob_stairs_enabled:
+                    _stair_depth = (general_board_thickness + top_depth) - base_depth - knob_stair_front_inset
+                    st.caption(
+                        f"Depth is set by the console: {_stair_depth:.0f}mm from the setback point "
+                        f"back to the upper front board, {_stair_depth / knob_stair_steps:.0f}mm per step."
+                    )
+
             with st.expander("Table Carve", expanded=False):
                 carve_enabled = st.checkbox(
                     'Enable Table Carve',
@@ -1600,6 +1669,15 @@ def main():
                 {"top_height_g": top_height},
                 {"top_notch_start_x_g": top_notch_start_x},
                 {"top_notch_start_y_g": top_notch_start_y}
+            ],
+            "Knob_stairs": [
+                {"knob_stairs_enabled_g": knob_stairs_enabled},
+                {"knob_stair_steps_g": knob_stair_steps},
+                {"knob_stair_step_height_g": knob_stair_step_height},
+                {"knob_stair_hole_diameter_g": knob_stair_hole_diameter},
+                {"knob_stair_hole_spacing_g": knob_stair_hole_spacing},
+                {"knob_stair_gap_g": knob_stair_gap},
+                {"knob_stair_front_inset_g": knob_stair_front_inset}
             ],
             "Carve": [
                 {"carve_enabled_g": carve_enabled},
