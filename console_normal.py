@@ -18,7 +18,10 @@ Usage:
 
 from build123d import *
 from utils import DotDict, create_board
-from keyboard import generate_keyboard_stack, get_keyboard_dimensions, get_keyboard_stack_dimensions
+from keyboard import (generate_keyboard_stack, get_keyboard_dimensions,
+                      get_keyboard_stack_dimensions, generate_keyboard_cheeks,
+                      get_keyboard_cheek_steps, generate_piston_rails,
+                      get_piston_rail_specs)
 
 
 def get_default_parameters():
@@ -49,21 +52,42 @@ def get_default_parameters():
             {"top_notch_start_x_g": 350},
             {"top_notch_start_y_g": 150}
         ],
+        "Carve": [
+            {"carve_enabled_g": True},   # Recess in the front edge of the horizontal table
+            {"carve_width_g": 900},      # Width of the flat bottom of the recess (mm)
+            {"carve_depth_g": 30},       # How far the recess eats into the table depth (mm)
+            {"carve_slope_g": 40},       # Horizontal run of each diagonal ramp (mm)
+            {"carve_offset_g": 0}        # Shift of the recess centre off board centre (mm)
+        ],
+        "Pistons": [
+            {"pistons_enabled_g": True},   # Combination piston rail under each manual
+            {"piston_count_g": 9},         # Number of pistons per rail
+            {"piston_diameter_g": 15},     # Piston hole diameter (mm)
+            {"piston_spacing_g": 45},      # Centre-to-centre spacing (mm)
+            {"piston_rail_height_g": 38}   # Rail face height (mm); rail 1 is auto-sized to reach the table
+        ],
         "Keyboards": [
             {"keyboard_num_manuals_g": 2},           # Number of keyboards (manuals)
             {"keyboard_total_keys_g": 61},           # Total keys (61 = 5 octaves, standard organ manual)
             {"keyboard_total_width_g": 870},         # Total keyboard width (mm) - key width calculated from this
             {"keyboard_white_key_length_g": 150},    # Visible white key length (mm)
             {"keyboard_white_key_height_g": 15},     # White key height/thickness (mm)
+            {"keyboard_white_key_front_cut_depth_g": 20},   # Undercut at the key tip, back from the front (mm)
+            {"keyboard_white_key_front_cut_height_g": 8},   # Undercut height, up from the key underside (mm)
             {"keyboard_black_key_width_ratio_g": 0.65},  # Black key width as ratio of white key width
             {"keyboard_black_key_length_g": 95},     # Black key length (mm)
             {"keyboard_black_key_height_g": 10},     # Black key height above white (mm)
             {"keyboard_key_gap_g": 0.5},             # Gap between keys (mm)
             {"keyboard_base_thickness_g": 10},       # Base plate thickness (mm)
-            {"keyboard_vertical_spacing_g": 80},     # Vertical spacing between manuals (mm)
+            # 73 = board_thickness + manual lift + manual height, which makes every
+            # cheek step the same height (the first spans table -> manual 1 black
+            # keys, each later one spans a single manual rise)
+            {"keyboard_vertical_spacing_g": 73},     # Vertical spacing between manuals (mm)
             {"keyboard_depth_offset_g": 130},        # Each higher manual offset back (mm) = key_length - 20
             {"keyboard_y_offset_g": 0},              # Offset from back of horizontal divider (mm), 0 = keys at front
-            {"keyboard_initial_height_gap_g": 0}     # Extra height gap below first keyboard (mm), room for a register board
+            {"keyboard_initial_height_gap_g": 20},   # Lift of the manuals above the table (mm), room for a register board
+            {"keyboard_cheeks_enabled_g": True},     # Vertical boards flanking the manuals
+            {"keyboard_cheek_height_g": 35}          # Cheek clearance above each manual; 35 = manual height, so cheeks finish flush with the black keys
         ]
     }
 
@@ -167,6 +191,39 @@ def generate_board_list(parameters):
         }
     ]
 
+    # Keyboard cheeks - one pair of steps per manual. Sizes depend only on how
+    # far the manuals sit above the table, not on absolute position, so measure
+    # from a table surface at z=0.
+    if getattr(p, 'keyboard_cheeks_enabled_g', False):
+        bt = p.general_board_thickness_g
+        kbd_z = bt + getattr(p, 'keyboard_initial_height_gap_g', 0)
+        for n, step in enumerate(get_keyboard_cheek_steps(parameters, (0, 0, kbd_z), bt, cheek_z=0)):
+            for side in ("Left", "Right"):
+                board_list.append({
+                    "name": f"{side} Keyboard Cheek Step {n + 1}",
+                    "width": step['depth'],
+                    "height": step['height'],
+                    "thickness": bt,
+                    "description": f"{side} cheek step {n + 1} (manual {n + 1}), "
+                                   f"depth={step['depth']:.0f}mm, height={step['height']:.0f}mm"
+                })
+
+
+    # Combination piston rails - one per manual, holes drilled through the face
+    _first_rail_max = p.general_board_thickness_g + getattr(p, 'keyboard_initial_height_gap_g', 0)
+    for n, spec in enumerate(get_piston_rail_specs(parameters, p.general_board_thickness_g, _first_rail_max)):
+        board_list.append({
+            "name": f"Combination Piston Rail {n + 1}",
+            "width": spec['width'],
+            "height": spec['height'],
+            "thickness": spec['thickness'],
+            "description": f"Piston rail under manual {n + 1}, "
+                           f"{len(spec['holes'])} holes of "
+                           f"{spec['holes'][0][2]:.0f}mm" if spec['holes']
+                           else f"Piston rail under manual {n + 1}",
+            "circular_holes": spec['holes'],
+        })
+
     return board_list
 
 
@@ -228,14 +285,20 @@ def generate_console(parameters):
         show_dimensions=show_dims
     ))
 
-    # Base horizontal
+    # Base horizontal - the keyboard table. Its front edge can carry a recess so
+    # the player can sit closer to the manuals.
+    carve_on = getattr(p, 'carve_enabled_g', False)
     parts.append(create_board(
         max_width=p.organ_internal_width_g,
         max_height=p.top_depth_g,
         board_thickness=p.general_board_thickness_g,
         position=(-p.general_board_thickness_g, p.general_board_thickness_g, p.base_height_g + p.general_board_thickness_g),
         rotation=(0, 90, 90),
-        show_dimensions=show_dims
+        show_dimensions=show_dims,
+        carve_width=getattr(p, 'carve_width_g', 0) if carve_on else 0,
+        carve_depth=getattr(p, 'carve_depth_g', 0) if carve_on else 0,
+        carve_slope=getattr(p, 'carve_slope_g', 0) if carve_on else 0,
+        carve_offset=getattr(p, 'carve_offset_g', 0) if carve_on else 0
     ))
 
     # Top lateral left
@@ -331,14 +394,31 @@ def generate_console(parameters):
         # Front of divider is at Y = general_board_thickness_g + top_depth_g
         keyboard_front_y = p.general_board_thickness_g + p.top_depth_g
         height_gap = getattr(p, 'keyboard_initial_height_gap_g', 0)
+
+        # Horizontal boards are placed by their top face, so the divider surface
+        # is at base_height_g + one thickness. The manuals then sit a further
+        # thickness above that, matching the vertical console.
+        table_top_z = p.base_height_g + p.general_board_thickness_g
         keyboard_position = (
             -p.general_board_thickness_g - p.organ_internal_width_g / 2 - kbd_width / 2,
             keyboard_front_y - kbd_depth + keyboard_y_offset,
-            p.base_height_g + p.general_board_thickness_g + height_gap
+            table_top_z + p.general_board_thickness_g + height_gap
         )
 
         keyboard_stack = generate_keyboard_stack(parameters, base_position=keyboard_position)
         parts.append(keyboard_stack)
+
+        # Cheeks flanking the manuals, standing on the divider surface
+        parts.extend(generate_keyboard_cheeks(
+            parameters, keyboard_position, p.general_board_thickness_g,
+            cheek_z=table_top_z, show_dimensions=show_dims
+        ))
+
+        # Combination piston rail under each manual
+        parts.extend(generate_piston_rails(
+            parameters, keyboard_position, p.general_board_thickness_g,
+            rail_base_z=table_top_z, show_dimensions=show_dims
+        ))
 
     # Combine all parts into a compound
     result = Compound(children=parts)

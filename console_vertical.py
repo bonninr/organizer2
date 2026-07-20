@@ -19,7 +19,9 @@ Usage:
 import math
 from build123d import *
 from utils import DotDict, create_board
-from keyboard import generate_keyboard_stack, get_keyboard_dimensions
+from keyboard import (generate_keyboard_stack, get_keyboard_dimensions,
+                      generate_keyboard_cheeks, get_keyboard_cheek_steps,
+                      generate_piston_rails, get_piston_rail_specs)
 
 
 def get_default_parameters():
@@ -48,19 +50,34 @@ def get_default_parameters():
             {"keyboard_cabinet_height_g": 200},
             {"keyboard_cabinet_offset_g": 200}
         ],
+        "Pistons": [
+            {"pistons_enabled_g": True},   # Combination piston rail under each manual
+            {"piston_count_g": 9},         # Number of pistons per rail
+            {"piston_diameter_g": 15},     # Piston hole diameter (mm)
+            {"piston_spacing_g": 45},      # Centre-to-centre spacing (mm)
+            {"piston_rail_height_g": 38}   # Rail face height (mm); rail 1 is auto-sized to reach the table
+        ],
         "Keyboards": [
             {"keyboard_num_manuals_g": 2},           # Number of keyboards (manuals)
             {"keyboard_total_keys_g": 61},           # Total keys (61 = 5 octaves, standard organ manual)
             {"keyboard_total_width_g": 870},         # Total keyboard width (mm) - should be less than cabinet width for cheeks
             {"keyboard_white_key_length_g": 150},    # Visible white key length (mm)
             {"keyboard_white_key_height_g": 15},     # White key height/thickness (mm)
+            {"keyboard_white_key_front_cut_depth_g": 20},   # Undercut at the key tip, back from the front (mm)
+            {"keyboard_white_key_front_cut_height_g": 8},   # Undercut height, up from the key underside (mm)
             {"keyboard_black_key_width_ratio_g": 0.65},  # Black key width as ratio of white key width
             {"keyboard_black_key_length_g": 95},     # Black key length (mm)
             {"keyboard_black_key_height_g": 10},     # Black key height above white (mm)
             {"keyboard_key_gap_g": 0.5},             # Gap between keys (mm)
             {"keyboard_base_thickness_g": 10},       # Base plate thickness (mm)
-            {"keyboard_vertical_spacing_g": 80},     # Vertical spacing between manuals (mm)
-            {"keyboard_depth_offset_g": 130}         # Each higher manual offset back (mm)
+            # 73 = board_thickness + manual lift + manual height, which makes every
+            # cheek step the same height (the first spans table -> manual 1 black
+            # keys, each later one spans a single manual rise)
+            {"keyboard_vertical_spacing_g": 73},     # Vertical spacing between manuals (mm)
+            {"keyboard_depth_offset_g": 130},        # Each higher manual offset back (mm)
+            {"keyboard_initial_height_gap_g": 20},   # Lift of the manuals above the shelf (mm), room for a register board
+            {"keyboard_cheeks_enabled_g": True},     # Vertical boards flanking the manuals
+            {"keyboard_cheek_height_g": 35}          # Cheek clearance above each manual; 35 = manual height, so cheeks finish flush with the black keys
         ],
         "Speakers": [
             {"front_speaker_width_g": 400},
@@ -309,6 +326,39 @@ def generate_board_list(parameters):
         }
     ]
 
+    # Keyboard cheeks - one pair of steps per manual. Sizes depend only on how
+    # far the manuals sit above the shelf, not on absolute position, so measure
+    # from a shelf surface at z=0.
+    if getattr(p, 'keyboard_cheeks_enabled_g', False):
+        bt = p.general_board_thickness_g
+        kbd_z = bt + getattr(p, 'keyboard_initial_height_gap_g', 0)
+        for n, step in enumerate(get_keyboard_cheek_steps(parameters, (0, 0, kbd_z), bt, cheek_z=0)):
+            for side in ("Left", "Right"):
+                board_list.append({
+                    "name": f"{side} Keyboard Cheek Step {n + 1}",
+                    "width": step['depth'],
+                    "height": step['height'],
+                    "thickness": bt,
+                    "description": f"{side} cheek step {n + 1} (manual {n + 1}), "
+                                   f"depth={step['depth']:.0f}mm, height={step['height']:.0f}mm"
+                })
+
+
+    # Combination piston rails - one per manual, holes drilled through the face
+    _first_rail_max = p.general_board_thickness_g + getattr(p, 'keyboard_initial_height_gap_g', 0)
+    for n, spec in enumerate(get_piston_rail_specs(parameters, p.general_board_thickness_g, _first_rail_max)):
+        board_list.append({
+            "name": f"Combination Piston Rail {n + 1}",
+            "width": spec['width'],
+            "height": spec['height'],
+            "thickness": spec['thickness'],
+            "description": f"Piston rail under manual {n + 1}, "
+                           f"{len(spec['holes'])} holes of "
+                           f"{spec['holes'][0][2]:.0f}mm" if spec['holes']
+                           else f"Piston rail under manual {n + 1}",
+            "circular_holes": spec['holes'],
+        })
+
     return board_list
 
 
@@ -516,14 +566,30 @@ def generate_console(parameters):
 
         # Position keyboard at front of main shelf, centered in the cabinet opening
         shelf_front_y = p.base_depth_g + p.base_front_distance_g
+        height_gap = getattr(p, 'keyboard_initial_height_gap_g', 0)
         keyboard_position = (
             -kbd_width / 2,  # Centered in X (keyboard is narrower than cabinet for cheeks)
             shelf_front_y - kbd_depth,  # Back edge positioned so front is at shelf front
-            p.base_height_g + p.general_board_thickness_g  # On top of main shelf
+            p.base_height_g + p.general_board_thickness_g + height_gap  # Above main shelf
         )
 
         keyboard_stack = generate_keyboard_stack(parameters, base_position=keyboard_position)
         parts.append(keyboard_stack)
+
+        # Cheeks flanking the manuals, inside the keyboard cabinet opening.
+        # Horizontal boards are placed by their top face, so the main shelf
+        # surface is at base_height_g - the cheeks stand on that, not on the
+        # keyboard base one thickness above it.
+        parts.extend(generate_keyboard_cheeks(
+            parameters, keyboard_position, p.general_board_thickness_g,
+            cheek_z=p.base_height_g, show_dimensions=show_dims
+        ))
+
+        # Combination piston rail under each manual
+        parts.extend(generate_piston_rails(
+            parameters, keyboard_position, p.general_board_thickness_g,
+            rail_base_z=p.base_height_g, show_dimensions=show_dims
+        ))
 
     # Note Stand Front Panel
     parts.append(create_board(

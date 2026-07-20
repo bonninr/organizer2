@@ -24,7 +24,41 @@ Usage:
 
 from build123d import *
 from utils import DotDict, create_board
-from keyboard import generate_keyboard_stack, get_keyboard_dimensions
+from keyboard import (generate_keyboard_stack, get_keyboard_dimensions,
+                      generate_keyboard_cheeks, get_keyboard_cheek_steps,
+                      generate_piston_rails, get_piston_rail_specs)
+
+
+def _keyboard_base_position(parameters):
+    """
+    Base position of the manual stack: minimum X, back edge Y, base Z.
+
+    Table boards are placed by their top face, so the table surface is at
+    table_height_g and the manuals sit one board thickness above it.
+    """
+    p = DotDict(parameters)
+    bt = p.general_board_thickness_g
+    kd = get_keyboard_dimensions(parameters)
+
+    return (
+        -bt - p.organ_internal_width_g / 2 - kd['width'] / 2,
+        p.table_depth_g - kd['depth'] + getattr(p, 'keyboard_y_offset_g', 0),
+        p.table_height_g + bt + getattr(p, 'keyboard_initial_height_gap_g', 0)
+    )
+
+
+def _cheek_clearance(parameters):
+    """
+    Height of each cheek step above its own manual's base.
+
+    The keyboard's own height is the top of its black keys, so using it finishes
+    each cheek flush with the black keys of the manual it flanks.
+    table_cheek_height_g adds any extra rise above that.
+    """
+    p = DotDict(parameters)
+
+    return (get_keyboard_dimensions(parameters)['height']
+            + getattr(p, 'table_cheek_height_g', 0))
 
 
 def get_default_parameters():
@@ -39,7 +73,8 @@ def get_default_parameters():
         "Table": [
             {"table_height_g": 720},
             {"table_depth_g": 550},
-            {"table_cheek_height_g": 60},        # height of each cheek staircase step
+            {"keyboard_cheeks_enabled_g": True},  # vertical boards flanking the manuals
+            {"table_cheek_height_g": 0},         # extra cheek rise above the black keys
             {"fill_notch_g": False},              # True = full depth with notch, False = short (cabinet depth)
             {"fill_notch_start_depth_g": 350},   # depth from back where notch slant begins (~console_depth - bt)
             {"fill_notch_front_width_g": 20}     # fill board width at the front of the notch (mm)
@@ -51,21 +86,33 @@ def get_default_parameters():
             {"volume_pedals_spacing_g": 10},
             {"volume_pedals_hole_start_height_g": 140}
         ],
+        "Pistons": [
+            {"pistons_enabled_g": True},   # Combination piston rail under each manual
+            {"piston_count_g": 9},         # Number of pistons per rail
+            {"piston_diameter_g": 15},     # Piston hole diameter (mm)
+            {"piston_spacing_g": 45},      # Centre-to-centre spacing (mm)
+            {"piston_rail_height_g": 38}   # Rail face height (mm); rail 1 is auto-sized to reach the table
+        ],
         "Keyboards": [
             {"keyboard_num_manuals_g": 2},
             {"keyboard_total_keys_g": 61},
             {"keyboard_total_width_g": 870},
             {"keyboard_white_key_length_g": 150},
             {"keyboard_white_key_height_g": 15},
+            {"keyboard_white_key_front_cut_depth_g": 20},
+            {"keyboard_white_key_front_cut_height_g": 8},
             {"keyboard_black_key_width_ratio_g": 0.65},
             {"keyboard_black_key_length_g": 95},
             {"keyboard_black_key_height_g": 10},
             {"keyboard_key_gap_g": 0.5},
             {"keyboard_base_thickness_g": 10},
-            {"keyboard_vertical_spacing_g": 80},
+            # 73 = board_thickness + manual lift + manual height, which makes every
+            # cheek step the same height (the first spans table -> manual 1 black
+            # keys, each later one spans a single manual rise)
+            {"keyboard_vertical_spacing_g": 73},
             {"keyboard_depth_offset_g": 130},
             {"keyboard_y_offset_g": 0},
-            {"keyboard_initial_height_gap_g": 0}
+            {"keyboard_initial_height_gap_g": 20}
         ]
     }
 
@@ -134,17 +181,40 @@ def generate_board_list(parameters):
          "description": f"Volume pedals (quantity: {p.volume_pedals_number_g})"},
     ]
 
-    # Staircase keyboard cheeks: one step per manual level (step_height each).
-    for n in range(num_levels):
-        step_depth = table_inner_depth - n * depth_offset
-        if step_depth <= 0:
-            break
-        board_list += [
-            {"name": f"Left Keyboard Cheek Step {n + 1}", "width": step_depth, "height": step_height,
-             "thickness": bt, "description": f"Left cheek step {n + 1}, depth={step_depth:.0f}mm, height={step_height:.0f}mm"},
-            {"name": f"Right Keyboard Cheek Step {n + 1}", "width": step_depth, "height": step_height,
-             "thickness": bt, "description": f"Right cheek step {n + 1}, depth={step_depth:.0f}mm, height={step_height:.0f}mm"},
-        ]
+    # Staircase keyboard cheeks: one step per manual level, each finishing flush
+    # with its manual's black keys. Sizes are position-independent, so measure
+    # against a table surface at z=0 with the same back edge the model uses.
+    if getattr(p, 'keyboard_cheeks_enabled_g', False):
+        kbd_base = _keyboard_base_position(parameters)
+        steps = get_keyboard_cheek_steps(
+            parameters, (0, kbd_base[1], kbd_base[2] - p.table_height_g), bt,
+            cheek_z=0, back_y=bt, cheek_height=_cheek_clearance(parameters)
+        )
+        for n, step in enumerate(steps):
+            for side in ("Left", "Right"):
+                board_list.append({
+                    "name": f"{side} Keyboard Cheek Step {n + 1}",
+                    "width": step['depth'], "height": step['height'], "thickness": bt,
+                    "description": f"{side} cheek step {n + 1}, depth={step['depth']:.0f}mm, "
+                                   f"height={step['height']:.0f}mm, flush with manual "
+                                   f"{n + 1} black keys"
+                })
+
+
+    # Combination piston rails - one per manual, holes drilled through the face
+    _first_rail_max = bt + getattr(p, 'keyboard_initial_height_gap_g', 0)
+    for n, spec in enumerate(get_piston_rail_specs(parameters, bt, _first_rail_max)):
+        board_list.append({
+            "name": f"Combination Piston Rail {n + 1}",
+            "width": spec['width'],
+            "height": spec['height'],
+            "thickness": spec['thickness'],
+            "description": f"Piston rail under manual {n + 1}, "
+                           f"{len(spec['holes'])} holes of "
+                           f"{spec['holes'][0][2]:.0f}mm" if spec['holes']
+                           else f"Piston rail under manual {n + 1}",
+            "circular_holes": spec['holes'],
+        })
 
     return board_list
 
@@ -158,7 +228,6 @@ def generate_console(parameters):
     vertical_spacing = getattr(p, 'keyboard_vertical_spacing_g', 80)
     keyboard_y_offset = getattr(p, 'keyboard_y_offset_g', 0)
     bt = p.general_board_thickness_g
-    step_height = getattr(p, 'table_cheek_height_g', 60)
     fill_notch = getattr(p, 'fill_notch_g', False)
     fill_notch_start = getattr(p, 'fill_notch_start_depth_g', p.console_depth_g - bt)
     fill_notch_front_width = getattr(p, 'fill_notch_front_width_g', 100)
@@ -242,27 +311,17 @@ def generate_console(parameters):
     ))
 
     # Staircase keyboard cheeks — one vertical step per manual level.
-    # Step n: height = step_height, depth = table_inner_depth - n*depth_offset.
-    # Rises from table_height + n*step_height (front-aligned with keyboard tips).
-    num_levels = max(1, num_manuals)
-    for n in range(num_levels):
-        step_depth = table_inner_depth - n * depth_offset
-        if step_depth <= 0:
-            break
-        z_base = p.table_height_g + n * step_height
-
-        # Right cheek step — at right inner edge of center board
-        parts.append(create_board(
-            max_width=step_depth, max_height=step_height, board_thickness=bt,
-            position=(-(2 * bt + fill_width), bt, z_base),
-            rotation=(0, 0, 0), show_dimensions=show_dims
-        ))
-        # Left cheek step — at left inner edge of center board
-        parts.append(create_board(
-            max_width=step_depth, max_height=step_height, board_thickness=bt,
-            position=(-(3 * bt + fill_width + kbd_width), bt, z_base),
-            rotation=(0, 0, 0), show_dimensions=show_dims
-        ))
+    # Each step finishes flush with its own manual's black keys, so it tracks the
+    # manual heights rather than rising by a fixed amount. They stand on the
+    # table surface and run the full table depth (back_y at the table's back
+    # edge), unlike the normal/vertical cheeks which only flank the manuals.
+    parts.extend(generate_keyboard_cheeks(
+        parameters, _keyboard_base_position(parameters), bt,
+        cheek_z=p.table_height_g,
+        back_y=bt,
+        cheek_height=_cheek_clearance(parameters),
+        show_dimensions=show_dims
+    ))
 
     # ── Lower front panel with volume pedal hole ──────────────────────────────
     pedal_hole_w = (p.volume_pedals_number_g * (p.volume_pedals_width_g + p.volume_pedals_spacing_g)
@@ -296,14 +355,15 @@ def generate_console(parameters):
 
     # ── Keyboards ─────────────────────────────────────────────────────────────
     if num_manuals > 0:
-        height_gap = getattr(p, 'keyboard_initial_height_gap_g', 0)
-        keyboard_position = (
-            -bt - p.organ_internal_width_g / 2 - kbd_width / 2,
-            p.table_depth_g - kbd_depth + keyboard_y_offset,
-            p.table_height_g + height_gap
-        )
-        keyboard_stack = generate_keyboard_stack(parameters, base_position=keyboard_position)
+        keyboard_stack = generate_keyboard_stack(
+            parameters, base_position=_keyboard_base_position(parameters))
         parts.append(keyboard_stack)
+
+        # Combination piston rail under each manual
+        parts.extend(generate_piston_rails(
+            parameters, _keyboard_base_position(parameters), bt,
+            rail_base_z=p.table_height_g, show_dimensions=show_dims
+        ))
 
     return Compound(children=parts)
 

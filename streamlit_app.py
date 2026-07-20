@@ -38,7 +38,7 @@ from technical_drawing import create_a3_technical_drawing, generate_technical_dr
 
 
 # Cache version - increment to invalidate cache when export logic changes
-_CACHE_VERSION = 22  # v22: keyboard_initial_height_gap_g added; preset export button
+_CACHE_VERSION = 23  # v23: keyboard cheeks, table carve, 20mm manual lift, 53mm manual spacing
 
 @st.cache_data
 def generate_and_export_console_cached(
@@ -97,6 +97,7 @@ _PRESET_WIDGET_KEYS = {
         "base_front_distance_g": "inline_base_front_distance",
         "table_height_g": "inline_table_height",
         "table_depth_g": "inline_table_depth",
+        "keyboard_cheeks_enabled_g": "inline_cheeks_enabled",
         "table_cheek_height_g": "inline_cheek_height",
         "fill_notch_g": "inline_fill_notch",
         "fill_notch_start_depth_g": "inline_notch_start",
@@ -268,6 +269,24 @@ def main():
                             item[k] = flat[k]
             return base_params
 
+        _PVAL_REQUIRED = object()
+
+        def _pval(params, section, key, fallback=_PVAL_REQUIRED):
+            """Look a parameter up by name rather than by list position.
+
+            Positional lookups (params[section][7][...]) silently shift whenever a
+            parameter is inserted into a model's defaults, and break outright on
+            preset files saved before a parameter existed. Pass a fallback for
+            parameters that older presets may not carry; without one a missing key
+            raises, matching the old positional behaviour.
+            """
+            for item in params.get(section, []):
+                if key in item:
+                    return item[key]
+            if fallback is _PVAL_REQUIRED:
+                raise KeyError(f"{key} not found in parameter section {section!r}")
+            return fallback
+
         # Initialize parameters — preset takes priority, then last-used, then module defaults
         if ("_preset_params" in st.session_state
                 and st.session_state.get("_preset_type") == console_type):
@@ -292,7 +311,7 @@ def main():
                 general_board_thickness = st.slider(
                     'Board Thickness (mm)',
                     min_value=12, max_value=25,
-                    value=default_params["General"][0]["general_board_thickness_g"],
+                    value=_pval(default_params, "General", "general_board_thickness_g"),
                     step=1,
                     help="Thickness of all wooden boards"
                 )
@@ -300,7 +319,7 @@ def main():
                 general_board_offset = st.slider(
                     'Board Offset (mm)',
                     min_value=3, max_value=10,
-                    value=default_params["General"][1]["general_board_offset_g"],
+                    value=_pval(default_params, "General", "general_board_offset_g"),
                     step=1,
                     help="Offset for board spacing"
                 )
@@ -311,7 +330,7 @@ def main():
                 organ_internal_width = st.slider(
                     'Internal Width (mm)',
                     min_value=800, max_value=2000,
-                    value=default_params["General_and_base"][0]["organ_internal_width_g"],
+                    value=_pval(default_params, "General_and_base", "organ_internal_width_g"),
                     step=50,
                     help="Internal width of the console"
                 )
@@ -319,7 +338,7 @@ def main():
                 general_board_thickness = st.slider(
                     'Board Thickness (mm)',
                     min_value=12, max_value=25,
-                    value=default_params["General_and_base"][1]["general_board_thickness_g"],
+                    value=_pval(default_params, "General_and_base", "general_board_thickness_g"),
                     step=1,
                     help="Thickness of all wooden boards"
                 )
@@ -327,7 +346,7 @@ def main():
                 base_height = st.slider(
                     'Base Height (mm)',
                     min_value=500, max_value=1200,
-                    value=default_params["General_and_base"][2]["base_height_g"],
+                    value=_pval(default_params, "General_and_base", "base_height_g"),
                     step=50,
                     help="Height of the base section"
                 )
@@ -335,7 +354,7 @@ def main():
                 base_depth = st.slider(
                     'Base Depth (mm)',
                     min_value=250, max_value=500,
-                    value=default_params["General_and_base"][3]["base_depth_g"],
+                    value=_pval(default_params, "General_and_base", "base_depth_g"),
                     step=25,
                     help="Depth of the base section"
                 )
@@ -343,7 +362,7 @@ def main():
                 base_front_distance = st.slider(
                     'Base Front Distance (mm)',
                     min_value=0, max_value=200,
-                    value=default_params["General_and_base"][4]["base_front_distance_g"],
+                    value=_pval(default_params, "General_and_base", "base_front_distance_g"),
                     step=10,
                     help="Front edge distance"
                 )
@@ -353,7 +372,7 @@ def main():
                 general_board_offset = st.slider(
                     'Board Offset (mm)',
                     min_value=5, max_value=20,
-                    value=default_params["General_and_base"][5]["general_board_offset_g"],
+                    value=_pval(default_params, "General_and_base", "general_board_offset_g"),
                     step=1, key="vertical_board_offset",
                     help="Offset for board spacing"
                 )
@@ -361,7 +380,7 @@ def main():
                 general_feet_thickness = st.slider(
                     'Feet Thickness (mm)',
                     min_value=30, max_value=80,
-                    value=default_params["General_and_base"][6]["general_feet_thickness_g"],
+                    value=_pval(default_params, "General_and_base", "general_feet_thickness_g"),
                     step=5, key="vertical_feet_thickness",
                     help="Thickness of console feet"
                 )
@@ -369,7 +388,7 @@ def main():
                 note_stand_height = st.slider(
                     'Note Stand Height (mm)',
                     min_value=300, max_value=700,
-                    value=default_params["General_and_base"][7]["note_stand_height_g"],
+                    value=_pval(default_params, "General_and_base", "note_stand_height_g"),
                     step=50,
                     help="Height of the music note stand"
                 )
@@ -377,7 +396,7 @@ def main():
                 note_stand_angle = st.slider(
                     'Note Stand Angle (degrees)',
                     min_value=0, max_value=30,
-                    value=default_params["General_and_base"][8]["note_stand_angle_g"],
+                    value=_pval(default_params, "General_and_base", "note_stand_angle_g"),
                     step=1,
                     help="Angle of the note stand"
                 )
@@ -385,7 +404,7 @@ def main():
                 note_shelf_height = st.slider(
                     'Note Shelf Height (mm)',
                     min_value=50, max_value=150,
-                    value=default_params["General_and_base"][9]["note_shelf_height_g"],
+                    value=_pval(default_params, "General_and_base", "note_shelf_height_g"),
                     step=10,
                     help="Height of the note shelf"
                 )
@@ -396,7 +415,7 @@ def main():
                 general_board_thickness = st.slider(
                     'Board Thickness (mm)',
                     min_value=12, max_value=25,
-                    value=default_params["General_and_base"][1]["general_board_thickness_g"],
+                    value=_pval(default_params, "General_and_base", "general_board_thickness_g"),
                     step=1, key="bench_board_thickness",
                     help="Thickness of all wooden boards"
                 )
@@ -404,7 +423,7 @@ def main():
                 general_board_offset = st.slider(
                     'Board Offset (mm)',
                     min_value=5, max_value=20,
-                    value=default_params["General_and_base"][5]["general_board_offset_g"],
+                    value=_pval(default_params, "General_and_base", "general_board_offset_g"),
                     step=1, key="bench_board_offset",
                     help="Offset for board spacing"
                 )
@@ -412,7 +431,7 @@ def main():
                 general_feet_thickness = st.slider(
                     'Feet Thickness (mm)',
                     min_value=30, max_value=80,
-                    value=default_params["General_and_base"][6]["general_feet_thickness_g"],
+                    value=_pval(default_params, "General_and_base", "general_feet_thickness_g"),
                     step=5, key="bench_feet_thickness",
                     help="Thickness of console feet"
                 )
@@ -423,7 +442,7 @@ def main():
                 keyboard_cabinet_width = st.slider(
                     'Cabinet Width (mm)',
                     min_value=600, max_value=1200,
-                    value=default_params["Keyboard_cabinet"][0]["keyboard_cabinet_width_g"],
+                    value=_pval(default_params, "Keyboard_cabinet", "keyboard_cabinet_width_g"),
                     step=20,
                     help="Width of keyboard cabinet area (allows for cheeks on sides)"
                 )
@@ -431,7 +450,7 @@ def main():
                 keyboard_cabinet_depth = st.slider(
                     'Cabinet Depth (mm)',
                     min_value=300, max_value=500,
-                    value=default_params["Keyboard_cabinet"][1]["keyboard_cabinet_depth_g"],
+                    value=_pval(default_params, "Keyboard_cabinet", "keyboard_cabinet_depth_g"),
                     step=25,
                     help="Depth of keyboard cabinet compartment"
                 )
@@ -439,7 +458,7 @@ def main():
                 keyboard_cabinet_height = st.slider(
                     'Cabinet Height (mm)',
                     min_value=150, max_value=300,
-                    value=default_params["Keyboard_cabinet"][2]["keyboard_cabinet_height_g"],
+                    value=_pval(default_params, "Keyboard_cabinet", "keyboard_cabinet_height_g"),
                     step=10,
                     help="Height of keyboard cabinet compartment"
                 )
@@ -447,7 +466,7 @@ def main():
                 keyboard_cabinet_offset = st.slider(
                     'Cabinet Offset (mm)',
                     min_value=100, max_value=300,
-                    value=default_params["Keyboard_cabinet"][3]["keyboard_cabinet_offset_g"],
+                    value=_pval(default_params, "Keyboard_cabinet", "keyboard_cabinet_offset_g"),
                     step=10,
                     help="Keyboard cabinet positioning offset"
                 )
@@ -458,7 +477,7 @@ def main():
                 v_keyboard_num_manuals = st.slider(
                     'Number of Manuals',
                     min_value=0, max_value=4,
-                    value=int(default_params["Keyboards"][0]["keyboard_num_manuals_g"]),
+                    value=int(_pval(default_params, "Keyboards", "keyboard_num_manuals_g")),
                     step=1,
                     help="Number of keyboard manuals (0 to disable)"
                 )
@@ -466,7 +485,7 @@ def main():
                 v_keyboard_total_keys = st.slider(
                     'Total Keys',
                     min_value=32, max_value=88,
-                    value=int(default_params["Keyboards"][1]["keyboard_total_keys_g"]),
+                    value=int(_pval(default_params, "Keyboards", "keyboard_total_keys_g")),
                     step=1,
                     help="Total number of keys per manual (61 = 5 octaves standard organ, 88 = full piano)"
                 )
@@ -474,7 +493,7 @@ def main():
                 v_keyboard_total_width = st.slider(
                     'Keyboard Width (mm)',
                     min_value=600, max_value=1200,
-                    value=int(default_params["Keyboards"][2]["keyboard_total_width_g"]),
+                    value=int(_pval(default_params, "Keyboards", "keyboard_total_width_g")),
                     step=10,
                     help="Total keyboard width - should be less than cabinet width for cheeks"
                 )
@@ -482,25 +501,65 @@ def main():
                 v_keyboard_white_key_length = st.slider(
                     'White Key Length (mm)',
                     min_value=120, max_value=180,
-                    value=int(default_params["Keyboards"][3]["keyboard_white_key_length_g"]),
+                    value=int(_pval(default_params, "Keyboards", "keyboard_white_key_length_g")),
                     step=5,
                     help="Visible length of white keys"
                 )
 
+                v_key_front_cut_depth = st.slider(
+                    'Key Front Undercut Depth (mm)',
+                    min_value=0, max_value=60,
+                    value=int(_pval(default_params, "Keyboards", "keyboard_white_key_front_cut_depth_g", 20)),
+                    step=1, key="vertical_key_front_cut_depth",
+                    help="How far back from the key tip the underside is cut away (0 = plain rectangular key)"
+                )
+
+                v_key_front_cut_height = st.slider(
+                    'Key Front Undercut Height (mm)',
+                    min_value=0, max_value=20,
+                    value=int(_pval(default_params, "Keyboards", "keyboard_white_key_front_cut_height_g", 8)),
+                    step=1, key="vertical_key_front_cut_height",
+                    help="How much of the key thickness is removed underneath, leaving the top as an overhang"
+                )
+
                 v_keyboard_vertical_spacing = st.slider(
                     'Vertical Spacing (mm)',
-                    min_value=60, max_value=120,
-                    value=int(default_params["Keyboards"][10]["keyboard_vertical_spacing_g"]),
+                    min_value=40, max_value=120,
+                    value=int(_pval(default_params, "Keyboards", "keyboard_vertical_spacing_g", 53)),
                     step=5,
-                    help="Vertical distance between manuals"
+                    help="Vertical distance between manuals. Equal to board thickness + manual height (53mm by default) makes every keyboard cheek step the same height."
                 )
 
                 v_keyboard_depth_offset = st.slider(
                     'Depth Offset (mm)',
                     min_value=50, max_value=200,
-                    value=int(default_params["Keyboards"][11]["keyboard_depth_offset_g"]),
+                    value=int(_pval(default_params, "Keyboards", "keyboard_depth_offset_g")),
                     step=5,
                     help="How much each higher manual is stepped back"
+                )
+
+                v_keyboard_height_gap = st.slider(
+                    'Manual Lift Above Shelf (mm)',
+                    min_value=0, max_value=200,
+                    value=int(_pval(default_params, "Keyboards", "keyboard_initial_height_gap_g", 20)),
+                    step=5, key="vertical_kbd_height_gap",
+                    help="Extra height below the first manual (e.g. for a register board)"
+                )
+
+                v_keyboard_cheeks_enabled = st.checkbox(
+                    'Enable Keyboard Cheeks',
+                    value=bool(_pval(default_params, "Keyboards", "keyboard_cheeks_enabled_g", True)),
+                    key="vertical_cheeks_enabled",
+                    help="Vertical boards flanking the manuals, one staircase step per manual"
+                )
+
+                v_keyboard_cheek_height = st.slider(
+                    'Cheek Step Height (mm)',
+                    min_value=20, max_value=150,
+                    value=int(_pval(default_params, "Keyboards", "keyboard_cheek_height_g", 60)),
+                    step=5, key="vertical_cheek_height",
+                    disabled=not v_keyboard_cheeks_enabled,
+                    help="Height each cheek step rises above its manual"
                 )
 
         # SPEAKERS SECTION (Vertical only)
@@ -509,7 +568,7 @@ def main():
                 front_speaker_width = st.slider(
                     'Front Speaker Width (mm)',
                     min_value=200, max_value=600,
-                    value=default_params["Speakers"][0]["front_speaker_width_g"],
+                    value=_pval(default_params, "Speakers", "front_speaker_width_g"),
                     step=25,
                     help="Width of front speakers"
                 )
@@ -517,7 +576,7 @@ def main():
                 front_speaker_height = st.slider(
                     'Front Speaker Height (mm)',
                     min_value=100, max_value=300,
-                    value=default_params["Speakers"][1]["front_speaker_height_g"],
+                    value=_pval(default_params, "Speakers", "front_speaker_height_g"),
                     step=25,
                     help="Height of front speakers"
                 )
@@ -525,7 +584,7 @@ def main():
                 side_speaker_width = st.slider(
                     'Side Speaker Width (mm)',
                     min_value=50, max_value=200,
-                    value=default_params["Speakers"][2]["side_speaker_width_g"],
+                    value=_pval(default_params, "Speakers", "side_speaker_width_g"),
                     step=10,
                     help="Width of side speakers"
                 )
@@ -533,14 +592,14 @@ def main():
                 side_speaker_height = st.slider(
                     'Side Speaker Height (mm)',
                     min_value=1000, max_value=2000,
-                    value=default_params["Speakers"][3]["side_speaker_height_g"],
+                    value=_pval(default_params, "Speakers", "side_speaker_height_g"),
                     step=50,
                     help="Height of side speakers"
                 )
 
                 enable_lateral_speaker_holes = st.checkbox(
                     'Enable Lateral Speaker Holes',
-                    value=default_params["Speakers"][4]["enable_lateral_speaker_holes_g"],
+                    value=_pval(default_params, "Speakers", "enable_lateral_speaker_holes_g"),
                     help="Enable or disable holes for lateral speakers in side panels"
                 )
 
@@ -550,7 +609,7 @@ def main():
                 volume_pedals_width = st.slider(
                     'Pedal Width (mm)',
                     min_value=80, max_value=200,
-                    value=default_params["Volume_pedals"][0]["volume_pedals_width_g"],
+                    value=_pval(default_params, "Volume_pedals", "volume_pedals_width_g"),
                     step=10,
                     help="Width of each volume pedal"
                 )
@@ -558,7 +617,7 @@ def main():
                 volume_pedals_height = st.slider(
                     'Pedal Height (mm)',
                     min_value=150, max_value=300,
-                    value=default_params["Volume_pedals"][1]["volume_pedals_height_g"],
+                    value=_pval(default_params, "Volume_pedals", "volume_pedals_height_g"),
                     step=10,
                     help="Height of each volume pedal"
                 )
@@ -566,7 +625,7 @@ def main():
                 volume_pedals_number = st.slider(
                     'Number of Pedals',
                     min_value=1, max_value=5,
-                    value=default_params["Volume_pedals"][2]["volume_pedals_number_g"],
+                    value=_pval(default_params, "Volume_pedals", "volume_pedals_number_g"),
                     step=1,
                     help="Number of volume pedal controls"
                 )
@@ -574,7 +633,7 @@ def main():
                 volume_pedals_spacing = st.slider(
                     'Pedal Spacing (mm)',
                     min_value=5, max_value=20,
-                    value=default_params["Volume_pedals"][3]["volume_pedals_spacing_g"],
+                    value=_pval(default_params, "Volume_pedals", "volume_pedals_spacing_g"),
                     step=1,
                     help="Spacing between pedals"
                 )
@@ -582,7 +641,7 @@ def main():
                 volume_pedals_hole_start_height = st.slider(
                     'Pedal Hole Start Height (mm)',
                     min_value=100, max_value=200,
-                    value=default_params["Volume_pedals"][4]["volume_pedals_hole_start_height_g"],
+                    value=_pval(default_params, "Volume_pedals", "volume_pedals_hole_start_height_g"),
                     step=10,
                     help="Starting height for pedal holes"
                 )
@@ -590,14 +649,14 @@ def main():
             with st.expander("Register Knobs", expanded=False):
                 enable_knob_holes = st.checkbox(
                     'Enable Knob Holes',
-                    value=default_params["Knobs"][0]["enable_knob_holes_g"],
+                    value=_pval(default_params, "Knobs", "enable_knob_holes_g"),
                     help="Add staggered knob holes to register panels"
                 )
 
                 knob_columns = st.slider(
                     'Number of Columns',
                     min_value=4, max_value=12,
-                    value=default_params["Knobs"][1]["knob_columns_g"],
+                    value=_pval(default_params, "Knobs", "knob_columns_g"),
                     step=1,
                     help="Number of vertical columns of knobs"
                 )
@@ -605,7 +664,7 @@ def main():
                 knob_rows = st.slider(
                     'Rows per Column',
                     min_value=5, max_value=15,
-                    value=default_params["Knobs"][2]["knob_rows_g"],
+                    value=_pval(default_params, "Knobs", "knob_rows_g"),
                     step=1,
                     help="Number of knob holes per column"
                 )
@@ -613,7 +672,7 @@ def main():
                 knob_diameter = st.slider(
                     'Knob Hole Diameter (mm)',
                     min_value=15, max_value=40,
-                    value=default_params["Knobs"][3]["knob_diameter_g"],
+                    value=_pval(default_params, "Knobs", "knob_diameter_g"),
                     step=1,
                     help="Diameter of each knob hole"
                 )
@@ -621,7 +680,7 @@ def main():
                 knob_vertical_spacing = st.slider(
                     'Vertical Spacing (mm)',
                     min_value=30, max_value=80,
-                    value=default_params["Knobs"][4]["knob_vertical_spacing_g"],
+                    value=_pval(default_params, "Knobs", "knob_vertical_spacing_g"),
                     step=5,
                     help="Vertical spacing between holes in same column"
                 )
@@ -629,7 +688,7 @@ def main():
                 knob_horizontal_spacing = st.slider(
                     'Horizontal Spacing (mm)',
                     min_value=40, max_value=100,
-                    value=default_params["Knobs"][5]["knob_horizontal_spacing_g"],
+                    value=_pval(default_params, "Knobs", "knob_horizontal_spacing_g"),
                     step=5,
                     help="Horizontal spacing between columns"
                 )
@@ -637,7 +696,7 @@ def main():
                 knob_stagger_offset = st.slider(
                     'Stagger Offset (mm)',
                     min_value=0, max_value=50,
-                    value=default_params["Knobs"][6]["knob_stagger_offset_g"],
+                    value=_pval(default_params, "Knobs", "knob_stagger_offset_g"),
                     step=5,
                     help="Vertical offset for alternating columns (stagger pattern)"
                 )
@@ -645,7 +704,7 @@ def main():
                 knob_margin_top = st.slider(
                     'Top Margin (mm)',
                     min_value=20, max_value=100,
-                    value=default_params["Knobs"][7]["knob_margin_top_g"],
+                    value=_pval(default_params, "Knobs", "knob_margin_top_g"),
                     step=5,
                     help="Top margin from panel edge"
                 )
@@ -653,7 +712,7 @@ def main():
                 knob_margin_side = st.slider(
                     'Side Margin (mm)',
                     min_value=10, max_value=80,
-                    value=default_params["Knobs"][8]["knob_margin_side_g"],
+                    value=_pval(default_params, "Knobs", "knob_margin_side_g"),
                     step=5,
                     help="Side margin from panel edge"
                 )
@@ -664,7 +723,7 @@ def main():
                 volume_pedals_width = st.slider(
                     'Pedal Width (mm)',
                     min_value=80, max_value=200,
-                    value=default_params["Volume_pedals"][0]["volume_pedals_width_g"],
+                    value=_pval(default_params, "Volume_pedals", "volume_pedals_width_g"),
                     step=10,
                     help="Width of each volume pedal"
                 )
@@ -672,7 +731,7 @@ def main():
                 volume_pedals_height = st.slider(
                     'Pedal Height (mm)',
                     min_value=150, max_value=300,
-                    value=default_params["Volume_pedals"][1]["volume_pedals_height_g"],
+                    value=_pval(default_params, "Volume_pedals", "volume_pedals_height_g"),
                     step=10,
                     help="Height of each volume pedal"
                 )
@@ -680,7 +739,7 @@ def main():
                 volume_pedals_number = st.slider(
                     'Number of Pedals',
                     min_value=1, max_value=5,
-                    value=default_params["Volume_pedals"][2]["volume_pedals_number_g"],
+                    value=_pval(default_params, "Volume_pedals", "volume_pedals_number_g"),
                     step=1,
                     help="Number of volume pedal controls"
                 )
@@ -688,7 +747,7 @@ def main():
                 volume_pedals_spacing = st.slider(
                     'Pedal Spacing (mm)',
                     min_value=5, max_value=20,
-                    value=default_params["Volume_pedals"][3]["volume_pedals_spacing_g"],
+                    value=_pval(default_params, "Volume_pedals", "volume_pedals_spacing_g"),
                     step=1,
                     help="Spacing between pedals"
                 )
@@ -696,7 +755,7 @@ def main():
                 volume_pedals_hole_start_height = st.slider(
                     'Pedal Hole Start Height (mm)',
                     min_value=100, max_value=200,
-                    value=default_params["Volume_pedals"][4]["volume_pedals_hole_start_height_g"],
+                    value=_pval(default_params, "Volume_pedals", "volume_pedals_hole_start_height_g"),
                     step=10,
                     help="Starting height for pedal holes"
                 )
@@ -707,7 +766,7 @@ def main():
                 top_depth = st.slider(
                     'Top Depth (mm)',
                     min_value=400, max_value=800,
-                    value=default_params["Top"][0]["top_depth_g"],
+                    value=_pval(default_params, "Top", "top_depth_g"),
                     step=25,
                     help="Depth of the top section"
                 )
@@ -715,7 +774,7 @@ def main():
                 top_height = st.slider(
                     'Top Height (mm)',
                     min_value=200, max_value=500,
-                    value=default_params["Top"][1]["top_height_g"],
+                    value=_pval(default_params, "Top", "top_height_g"),
                     step=25,
                     help="Height of the top section"
                 )
@@ -723,7 +782,7 @@ def main():
                 top_notch_start_x = st.slider(
                     'Top Notch Start X (mm)',
                     min_value=200, max_value=500,
-                    value=default_params["Top"][2]["top_notch_start_x_g"],
+                    value=_pval(default_params, "Top", "top_notch_start_x_g"),
                     step=25,
                     help="X position where top notch starts"
                 )
@@ -731,9 +790,50 @@ def main():
                 top_notch_start_y = st.slider(
                     'Top Notch Start Y (mm)',
                     min_value=100, max_value=300,
-                    value=default_params["Top"][3]["top_notch_start_y_g"],
+                    value=_pval(default_params, "Top", "top_notch_start_y_g"),
                     step=25,
                     help="Y position where top notch starts"
+                )
+
+        # TABLE CARVE (Normal only)
+        if console_type == "normal":
+            with st.expander("Table Carve", expanded=False):
+                carve_enabled = st.checkbox(
+                    'Enable Table Carve',
+                    value=_pval(default_params, "Carve", "carve_enabled_g", True),
+                    help="Cut a recess into the front edge of the keyboard table so the player can sit closer"
+                )
+
+                carve_width = st.slider(
+                    'Carve Width (mm)',
+                    min_value=200, max_value=1200,
+                    value=int(_pval(default_params, "Carve", "carve_width_g", 900)),
+                    step=10, disabled=not carve_enabled,
+                    help="Width of the flat bottom of the recess"
+                )
+
+                carve_depth = st.slider(
+                    'Carve Depth (mm)',
+                    min_value=0, max_value=150,
+                    value=int(_pval(default_params, "Carve", "carve_depth_g", 30)),
+                    step=5, disabled=not carve_enabled,
+                    help="How far the recess eats into the table depth"
+                )
+
+                carve_slope = st.slider(
+                    'Carve Slope Run (mm)',
+                    min_value=0, max_value=150,
+                    value=int(_pval(default_params, "Carve", "carve_slope_g", 40)),
+                    step=5, disabled=not carve_enabled,
+                    help="Horizontal run of each diagonal ramp (0 = square shoulders)"
+                )
+
+                carve_offset = st.slider(
+                    'Carve Offset (mm)',
+                    min_value=-300, max_value=300,
+                    value=int(_pval(default_params, "Carve", "carve_offset_g", 0)),
+                    step=10, disabled=not carve_enabled,
+                    help="Shift the recess off centre"
                 )
 
         # KEYBOARDS SECTION (Normal only)
@@ -742,7 +842,7 @@ def main():
                 keyboard_num_manuals = st.slider(
                     'Number of Manuals',
                     min_value=0, max_value=4,
-                    value=int(default_params["Keyboards"][0]["keyboard_num_manuals_g"]),
+                    value=int(_pval(default_params, "Keyboards", "keyboard_num_manuals_g")),
                     step=1,
                     help="Number of keyboard manuals (0 to disable)"
                 )
@@ -750,7 +850,7 @@ def main():
                 keyboard_total_keys = st.slider(
                     'Total Keys',
                     min_value=32, max_value=88,
-                    value=int(default_params["Keyboards"][1]["keyboard_total_keys_g"]),
+                    value=int(_pval(default_params, "Keyboards", "keyboard_total_keys_g")),
                     step=1,
                     help="Total number of keys per manual (61 = 5 octaves standard organ, 88 = full piano)"
                 )
@@ -758,7 +858,7 @@ def main():
                 keyboard_total_width = st.slider(
                     'Total Keyboard Width (mm)',
                     min_value=600, max_value=1200,
-                    value=int(default_params["Keyboards"][2]["keyboard_total_width_g"]),
+                    value=int(_pval(default_params, "Keyboards", "keyboard_total_width_g")),
                     step=10,
                     help="Total width of keyboard - key width is calculated automatically"
                 )
@@ -766,23 +866,39 @@ def main():
                 keyboard_white_key_length = st.slider(
                     'White Key Length (mm)',
                     min_value=120, max_value=180,
-                    value=int(default_params["Keyboards"][3]["keyboard_white_key_length_g"]),
+                    value=int(_pval(default_params, "Keyboards", "keyboard_white_key_length_g")),
                     step=5,
                     help="Visible length of white keys"
                 )
 
+                key_front_cut_depth = st.slider(
+                    'Key Front Undercut Depth (mm)',
+                    min_value=0, max_value=60,
+                    value=int(_pval(default_params, "Keyboards", "keyboard_white_key_front_cut_depth_g", 20)),
+                    step=1, key="normal_key_front_cut_depth",
+                    help="How far back from the key tip the underside is cut away (0 = plain rectangular key)"
+                )
+
+                key_front_cut_height = st.slider(
+                    'Key Front Undercut Height (mm)',
+                    min_value=0, max_value=20,
+                    value=int(_pval(default_params, "Keyboards", "keyboard_white_key_front_cut_height_g", 8)),
+                    step=1, key="normal_key_front_cut_height",
+                    help="How much of the key thickness is removed underneath, leaving the top as an overhang"
+                )
+
                 keyboard_vertical_spacing = st.slider(
                     'Vertical Spacing (mm)',
-                    min_value=60, max_value=120,
-                    value=int(default_params["Keyboards"][10]["keyboard_vertical_spacing_g"]),
+                    min_value=40, max_value=120,
+                    value=int(_pval(default_params, "Keyboards", "keyboard_vertical_spacing_g", 53)),
                     step=5,
-                    help="Vertical distance between manuals"
+                    help="Vertical distance between manuals. Equal to board thickness + manual height (53mm by default) makes every keyboard cheek step the same height."
                 )
 
                 keyboard_depth_offset = st.slider(
                     'Depth Offset (mm)',
                     min_value=50, max_value=200,
-                    value=int(default_params["Keyboards"][11]["keyboard_depth_offset_g"]),
+                    value=int(_pval(default_params, "Keyboards", "keyboard_depth_offset_g")),
                     step=5,
                     help="How much each higher manual is stepped back (default: key length - 20mm)"
                 )
@@ -790,7 +906,7 @@ def main():
                 keyboard_y_offset = st.slider(
                     'Y Offset from Front (mm)',
                     min_value=-200, max_value=200,
-                    value=int(default_params["Keyboards"][12]["keyboard_y_offset_g"]),
+                    value=int(_pval(default_params, "Keyboards", "keyboard_y_offset_g")),
                     step=10,
                     help="Offset from front edge (0 = keys at front, negative = keys extend past front)"
                 )
@@ -798,9 +914,25 @@ def main():
                 keyboard_height_gap = st.slider(
                     'Initial Height Gap (mm)',
                     min_value=0, max_value=200,
-                    value=int(default_params["Keyboards"][13]["keyboard_initial_height_gap_g"]),
+                    value=int(_pval(default_params, "Keyboards", "keyboard_initial_height_gap_g", 20)),
                     step=5,
                     help="Extra height below first keyboard (e.g. for a register board)"
+                )
+
+                keyboard_cheeks_enabled = st.checkbox(
+                    'Enable Keyboard Cheeks',
+                    value=bool(_pval(default_params, "Keyboards", "keyboard_cheeks_enabled_g", True)),
+                    key="normal_cheeks_enabled",
+                    help="Vertical boards flanking the manuals, one staircase step per manual"
+                )
+
+                keyboard_cheek_height = st.slider(
+                    'Cheek Step Height (mm)',
+                    min_value=20, max_value=150,
+                    value=int(_pval(default_params, "Keyboards", "keyboard_cheek_height_g", 60)),
+                    step=5, key="normal_cheek_height",
+                    disabled=not keyboard_cheeks_enabled,
+                    help="Height each cheek step rises above its manual"
                 )
 
         # INLINE CONSOLE SECTIONS
@@ -809,7 +941,7 @@ def main():
                 organ_internal_width = st.slider(
                     'Internal Width (mm)',
                     min_value=800, max_value=2000,
-                    value=default_params["General_and_base"][0]["organ_internal_width_g"],
+                    value=_pval(default_params, "General_and_base", "organ_internal_width_g"),
                     step=50, key="inline_organ_width",
                     help="Internal width of the console"
                 )
@@ -817,7 +949,7 @@ def main():
                 general_board_thickness = st.slider(
                     'Board Thickness (mm)',
                     min_value=12, max_value=25,
-                    value=default_params["General_and_base"][1]["general_board_thickness_g"],
+                    value=_pval(default_params, "General_and_base", "general_board_thickness_g"),
                     step=1, key="inline_board_thickness",
                     help="Thickness of all wooden boards"
                 )
@@ -825,7 +957,7 @@ def main():
                 inline_total_height = st.slider(
                     'Total Height (mm)',
                     min_value=700, max_value=1400,
-                    value=default_params["General_and_base"][2]["total_height_g"],
+                    value=_pval(default_params, "General_and_base", "total_height_g"),
                     step=25, key="inline_total_height",
                     help="Full height of the console side panels"
                 )
@@ -833,7 +965,7 @@ def main():
                 inline_console_depth = st.slider(
                     'Cabinet Body Depth (mm)',
                     min_value=200, max_value=600,
-                    value=default_params["General_and_base"][3]["console_depth_g"],
+                    value=_pval(default_params, "General_and_base", "console_depth_g"),
                     step=25, key="inline_console_depth",
                     help="Depth of the cabinet body (side panels, back, front panel). The keyboard table extends further."
                 )
@@ -841,7 +973,7 @@ def main():
                 base_front_distance = st.slider(
                     'Front Distance (mm)',
                     min_value=0, max_value=100,
-                    value=default_params["General_and_base"][4]["base_front_distance_g"],
+                    value=_pval(default_params, "General_and_base", "base_front_distance_g"),
                     step=5, key="inline_base_front_distance",
                     help="Distance from front face to volume pedal front panel"
                 )
@@ -850,7 +982,7 @@ def main():
                 inline_table_height = st.slider(
                     'Table Height (mm)',
                     min_value=500, max_value=900,
-                    value=default_params["Table"][0]["table_height_g"],
+                    value=_pval(default_params, "Table", "table_height_g"),
                     step=10, key="inline_table_height",
                     help="Height of the keyboard table top surface"
                 )
@@ -858,22 +990,30 @@ def main():
                 inline_table_depth = st.slider(
                     'Table Depth (mm)',
                     min_value=400, max_value=900,
-                    value=default_params["Table"][1]["table_depth_g"],
+                    value=_pval(default_params, "Table", "table_depth_g"),
                     step=25, key="inline_table_depth",
                     help="Total front-to-back depth of the keyboard table (extends beyond console body depth)"
                 )
 
+                inline_cheeks_enabled = st.checkbox(
+                    'Enable Keyboard Cheeks',
+                    value=bool(_pval(default_params, "Table", "keyboard_cheeks_enabled_g", True)),
+                    key="inline_cheeks_enabled",
+                    help="Vertical boards flanking the manuals, one staircase step per manual"
+                )
+
                 inline_table_cheek_height = st.slider(
-                    'Cheek Step Height (mm)',
-                    min_value=20, max_value=150,
-                    value=int(default_params["Table"][2]["table_cheek_height_g"]),
+                    'Cheek Rise Above Black Keys (mm)',
+                    min_value=0, max_value=100,
+                    value=int(_pval(default_params, "Table", "table_cheek_height_g", 0)),
                     step=5, key="inline_cheek_height",
-                    help="Height of each cheek staircase step (one step per manual)"
+                    disabled=not inline_cheeks_enabled,
+                    help="0 = each cheek step finishes flush with its own manual's black keys"
                 )
 
                 inline_fill_notch = st.checkbox(
                     'Fill boards full depth with notch',
-                    value=bool(default_params["Table"][3]["fill_notch_g"]),
+                    value=bool(_pval(default_params, "Table", "fill_notch_g", False)),
                     key="inline_fill_notch",
                     help="Checked: fill boards extend full table depth with a trapezoidal notch. Unchecked: short, ends at cabinet body depth."
                 )
@@ -882,26 +1022,26 @@ def main():
                     inline_fill_notch_start = st.slider(
                         'Notch Start Depth (mm)',
                         min_value=100, max_value=600,
-                        value=int(default_params["Table"][4]["fill_notch_start_depth_g"]),
+                        value=int(_pval(default_params, "Table", "fill_notch_start_depth_g", 350)),
                         step=10, key="inline_notch_start",
                         help="Depth from back where the fill board notch slant begins"
                     )
                     inline_fill_notch_front_width = st.slider(
                         'Notch Front Width (mm)',
                         min_value=0, max_value=400,
-                        value=int(default_params["Table"][5]["fill_notch_front_width_g"]),
+                        value=int(_pval(default_params, "Table", "fill_notch_front_width_g", 20)),
                         step=10, key="inline_notch_front_width",
                         help="Fill board width at the front of the notch (0 = fully slanted to a point)"
                     )
                 else:
-                    inline_fill_notch_start = int(default_params["Table"][4]["fill_notch_start_depth_g"])
-                    inline_fill_notch_front_width = int(default_params["Table"][5]["fill_notch_front_width_g"])
+                    inline_fill_notch_start = int(_pval(default_params, "Table", "fill_notch_start_depth_g", 350))
+                    inline_fill_notch_front_width = int(_pval(default_params, "Table", "fill_notch_front_width_g", 20))
 
             with st.expander("Volume Pedals", expanded=False):
                 volume_pedals_width = st.slider(
                     'Pedal Width (mm)',
                     min_value=80, max_value=200,
-                    value=default_params["Volume_pedals"][0]["volume_pedals_width_g"],
+                    value=_pval(default_params, "Volume_pedals", "volume_pedals_width_g"),
                     step=10, key="inline_pedal_width",
                     help="Width of each volume pedal"
                 )
@@ -909,7 +1049,7 @@ def main():
                 volume_pedals_height = st.slider(
                     'Pedal Height (mm)',
                     min_value=150, max_value=300,
-                    value=default_params["Volume_pedals"][1]["volume_pedals_height_g"],
+                    value=_pval(default_params, "Volume_pedals", "volume_pedals_height_g"),
                     step=10, key="inline_pedal_height",
                     help="Height of each volume pedal"
                 )
@@ -917,7 +1057,7 @@ def main():
                 volume_pedals_number = st.slider(
                     'Number of Pedals',
                     min_value=1, max_value=5,
-                    value=default_params["Volume_pedals"][2]["volume_pedals_number_g"],
+                    value=_pval(default_params, "Volume_pedals", "volume_pedals_number_g"),
                     step=1, key="inline_pedal_number",
                     help="Number of volume pedal controls"
                 )
@@ -925,7 +1065,7 @@ def main():
                 volume_pedals_spacing = st.slider(
                     'Pedal Spacing (mm)',
                     min_value=5, max_value=20,
-                    value=default_params["Volume_pedals"][3]["volume_pedals_spacing_g"],
+                    value=_pval(default_params, "Volume_pedals", "volume_pedals_spacing_g"),
                     step=1, key="inline_pedal_spacing",
                     help="Spacing between pedals"
                 )
@@ -933,7 +1073,7 @@ def main():
                 volume_pedals_hole_start_height = st.slider(
                     'Pedal Hole Start Height (mm)',
                     min_value=100, max_value=200,
-                    value=default_params["Volume_pedals"][4]["volume_pedals_hole_start_height_g"],
+                    value=_pval(default_params, "Volume_pedals", "volume_pedals_hole_start_height_g"),
                     step=10, key="inline_pedal_hole_height",
                     help="Starting height for pedal holes"
                 )
@@ -942,7 +1082,7 @@ def main():
                 inline_keyboard_num_manuals = st.slider(
                     'Number of Manuals',
                     min_value=0, max_value=4,
-                    value=int(default_params["Keyboards"][0]["keyboard_num_manuals_g"]),
+                    value=int(_pval(default_params, "Keyboards", "keyboard_num_manuals_g")),
                     step=1, key="inline_kbd_manuals",
                     help="Number of keyboard manuals (0 to disable)"
                 )
@@ -950,7 +1090,7 @@ def main():
                 inline_keyboard_total_keys = st.slider(
                     'Total Keys',
                     min_value=32, max_value=88,
-                    value=int(default_params["Keyboards"][1]["keyboard_total_keys_g"]),
+                    value=int(_pval(default_params, "Keyboards", "keyboard_total_keys_g")),
                     step=1, key="inline_kbd_total_keys",
                     help="Total number of keys per manual"
                 )
@@ -958,7 +1098,7 @@ def main():
                 inline_keyboard_total_width = st.slider(
                     'Keyboard Width (mm)',
                     min_value=600, max_value=1200,
-                    value=int(default_params["Keyboards"][2]["keyboard_total_width_g"]),
+                    value=int(_pval(default_params, "Keyboards", "keyboard_total_width_g")),
                     step=10, key="inline_kbd_width",
                     help="Total keyboard width"
                 )
@@ -966,23 +1106,39 @@ def main():
                 inline_keyboard_white_key_length = st.slider(
                     'White Key Length (mm)',
                     min_value=120, max_value=180,
-                    value=int(default_params["Keyboards"][3]["keyboard_white_key_length_g"]),
+                    value=int(_pval(default_params, "Keyboards", "keyboard_white_key_length_g")),
                     step=5, key="inline_kbd_white_key_len",
                     help="Visible length of white keys"
                 )
 
+                inline_key_front_cut_depth = st.slider(
+                    'Key Front Undercut Depth (mm)',
+                    min_value=0, max_value=60,
+                    value=int(_pval(default_params, "Keyboards", "keyboard_white_key_front_cut_depth_g", 20)),
+                    step=1, key="inline_key_front_cut_depth",
+                    help="How far back from the key tip the underside is cut away (0 = plain rectangular key)"
+                )
+
+                inline_key_front_cut_height = st.slider(
+                    'Key Front Undercut Height (mm)',
+                    min_value=0, max_value=20,
+                    value=int(_pval(default_params, "Keyboards", "keyboard_white_key_front_cut_height_g", 8)),
+                    step=1, key="inline_key_front_cut_height",
+                    help="How much of the key thickness is removed underneath, leaving the top as an overhang"
+                )
+
                 inline_keyboard_vertical_spacing = st.slider(
                     'Vertical Spacing (mm)',
-                    min_value=60, max_value=120,
-                    value=int(default_params["Keyboards"][10]["keyboard_vertical_spacing_g"]),
+                    min_value=40, max_value=120,
+                    value=int(_pval(default_params, "Keyboards", "keyboard_vertical_spacing_g", 53)),
                     step=5, key="inline_kbd_v_spacing",
-                    help="Vertical distance between manuals"
+                    help="Vertical distance between manuals. Equal to board thickness + manual height (53mm by default) makes every keyboard cheek step the same height."
                 )
 
                 inline_keyboard_depth_offset = st.slider(
                     'Depth Offset (mm)',
                     min_value=50, max_value=200,
-                    value=int(default_params["Keyboards"][11]["keyboard_depth_offset_g"]),
+                    value=int(_pval(default_params, "Keyboards", "keyboard_depth_offset_g")),
                     step=5, key="inline_kbd_depth_offset",
                     help="How much each higher manual is stepped back"
                 )
@@ -990,7 +1146,7 @@ def main():
                 inline_keyboard_y_offset = st.slider(
                     'Y Offset from Front (mm)',
                     min_value=-200, max_value=200,
-                    value=int(default_params["Keyboards"][12]["keyboard_y_offset_g"]),
+                    value=int(_pval(default_params, "Keyboards", "keyboard_y_offset_g")),
                     step=10, key="inline_kbd_y_offset",
                     help="Offset from front edge"
                 )
@@ -998,7 +1154,7 @@ def main():
                 inline_keyboard_height_gap = st.slider(
                     'Initial Height Gap (mm)',
                     min_value=0, max_value=200,
-                    value=int(default_params["Keyboards"][13]["keyboard_initial_height_gap_g"]),
+                    value=int(_pval(default_params, "Keyboards", "keyboard_initial_height_gap_g", 20)),
                     step=5, key="inline_kbd_height_gap",
                     help="Extra height below first keyboard (e.g. for a register board)"
                 )
@@ -1009,7 +1165,7 @@ def main():
                 bench_depth = st.slider(
                     'Bench Depth (mm)',
                     min_value=250, max_value=500,
-                    value=default_params["Bench"][0]["bench_depth_g"],
+                    value=_pval(default_params, "Bench", "bench_depth_g"),
                     step=25, key="bench_depth",
                     help="Depth of the bench"
                 )
@@ -1017,7 +1173,7 @@ def main():
                 bench_height = st.slider(
                     'Bench Height (mm)',
                     min_value=400, max_value=800,
-                    value=default_params["Bench"][1]["bench_height_g"],
+                    value=_pval(default_params, "Bench", "bench_height_g"),
                     step=50, key="bench_height",
                     help="Height of the bench"
                 )
@@ -1025,7 +1181,7 @@ def main():
                 bench_length = st.slider(
                     'Bench Length (mm)',
                     min_value=600, max_value=1200,
-                    value=default_params["Bench"][2]["bench_length_g"],
+                    value=_pval(default_params, "Bench", "bench_length_g"),
                     step=50, key="bench_length",
                     help="Length of the bench"
                 )
@@ -1033,7 +1189,7 @@ def main():
                 bench_shelf_height = st.slider(
                     'Bench Shelf Height (mm)',
                     min_value=50, max_value=200,
-                    value=default_params["Bench"][3]["bench_shelf_height_g"],
+                    value=_pval(default_params, "Bench", "bench_shelf_height_g"),
                     step=10, key="bench_shelf_height",
                     help="Height of the internal shelf"
                 )
@@ -1044,7 +1200,7 @@ def main():
                 number_of_notes = st.slider(
                     'Number of Notes',
                     min_value=12, max_value=36,
-                    value=int(default_params["Pedals"][0]["number_of_notes_g"]),
+                    value=int(_pval(default_params, "Pedals", "number_of_notes_g")),
                     step=1,
                     help="Total number of notes (AGO standard pattern will be auto-generated)"
                 )
@@ -1052,7 +1208,7 @@ def main():
                 short_pedal_width = st.slider(
                     'Short Pedal Width (mm)',
                     min_value=20.0, max_value=40.0,
-                    value=float(default_params["Pedals"][1]["short_pedal_width_g"]),
+                    value=float(_pval(default_params, "Pedals", "short_pedal_width_g")),
                     step=0.5,
                     help="Width of short (natural) pedals - 1 inch cross-section"
                 )
@@ -1060,7 +1216,7 @@ def main():
                 tall_pedal_width = st.slider(
                     'Tall Pedal Width (mm)',
                     min_value=20.0, max_value=40.0,
-                    value=float(default_params["Pedals"][2]["tall_pedal_width_g"]),
+                    value=float(_pval(default_params, "Pedals", "tall_pedal_width_g")),
                     step=0.5,
                     help="Width of tall (sharp/flat) pedals - 1 inch cross-section"
                 )
@@ -1068,7 +1224,7 @@ def main():
                 short_pedal_length = st.slider(
                     'Short Pedal Length (mm)',
                     min_value=600, max_value=800,
-                    value=int(default_params["Pedals"][3]["short_pedal_length_g"]),
+                    value=int(_pval(default_params, "Pedals", "short_pedal_length_g")),
                     step=10,
                     help="Length of short pedals (extending forward)"
                 )
@@ -1076,7 +1232,7 @@ def main():
                 tall_pedal_length = st.slider(
                     'Tall Pedal Length (mm)',
                     min_value=600, max_value=800,
-                    value=int(default_params["Pedals"][4]["tall_pedal_length_g"]),
+                    value=int(_pval(default_params, "Pedals", "tall_pedal_length_g")),
                     step=10,
                     help="Length of tall pedals (extending forward)"
                 )
@@ -1084,7 +1240,7 @@ def main():
                 pedal_height = st.slider(
                     'Pedal Height (mm)',
                     min_value=100, max_value=250,
-                    value=int(default_params["Pedals"][5]["pedal_height_g"]),
+                    value=int(_pval(default_params, "Pedals", "pedal_height_g")),
                     step=10,
                     help="Height of pedals above base"
                 )
@@ -1092,7 +1248,7 @@ def main():
                 pedal_thickness = st.slider(
                     'Pedal Thickness (mm)',
                     min_value=20.0, max_value=40.0,
-                    value=float(default_params["Pedals"][6]["pedal_thickness_g"]),
+                    value=float(_pval(default_params, "Pedals", "pedal_thickness_g")),
                     step=0.5,
                     help="Thickness of each pedal cross-section (1 inch for short, 2 inch for tall)"
                 )
@@ -1100,7 +1256,7 @@ def main():
                 pedal_spacing = st.slider(
                     'Pedal Spacing (mm)',
                     min_value=1, max_value=10,
-                    value=int(default_params["Pedals"][7]["pedal_spacing_g"]),
+                    value=int(_pval(default_params, "Pedals", "pedal_spacing_g")),
                     step=1,
                     help="Gap between pedals"
                 )
@@ -1109,7 +1265,7 @@ def main():
                 base_height = st.slider(
                     'Base Height (mm)',
                     min_value=50, max_value=200,
-                    value=int(default_params["Base"][0]["base_height_g"]),
+                    value=int(_pval(default_params, "Base", "base_height_g")),
                     step=10,
                     help="Height of the base frame"
                 )
@@ -1117,7 +1273,7 @@ def main():
                 base_depth = st.slider(
                     'Base Depth (mm)',
                     min_value=100, max_value=300,
-                    value=int(default_params["Base"][1]["base_depth_g"]),
+                    value=int(_pval(default_params, "Base", "base_depth_g")),
                     step=10,
                     help="Depth of the base frame from front"
                 )
@@ -1125,7 +1281,7 @@ def main():
                 lateral_board_height = st.slider(
                     'Lateral Board Height (mm)',
                     min_value=150, max_value=400,
-                    value=int(default_params["Base"][2]["lateral_board_height_g"]),
+                    value=int(_pval(default_params, "Base", "lateral_board_height_g")),
                     step=10,
                     help="Height of lateral side panels"
                 )
@@ -1134,7 +1290,7 @@ def main():
                 frame_side_height = st.slider(
                     'Side Board Height (mm)',
                     min_value=50, max_value=200,
-                    value=int(default_params["Frame"][0]["frame_side_height_g"]),
+                    value=int(_pval(default_params, "Frame", "frame_side_height_g")),
                     step=10,
                     help="Height of the side cheek boards"
                 )
@@ -1142,7 +1298,7 @@ def main():
                 frame_side_depth = st.slider(
                     'Side Board Depth (mm)',
                     min_value=0, max_value=900,
-                    value=int(default_params["Frame"][1]["frame_side_depth_g"]),
+                    value=int(_pval(default_params, "Frame", "frame_side_depth_g")),
                     step=10,
                     help="Depth of side boards (0 = auto-calculate from pedal length)"
                 )
@@ -1150,7 +1306,7 @@ def main():
                 frame_back_height = st.slider(
                     'Back Board Height (mm)',
                     min_value=0, max_value=200,
-                    value=int(default_params["Frame"][2]["frame_back_height_g"]),
+                    value=int(_pval(default_params, "Frame", "frame_back_height_g")),
                     step=10,
                     help="Height of back board (0 = no back board)"
                 )
@@ -1158,7 +1314,7 @@ def main():
                 frame_back_depth = st.slider(
                     'Back Board Depth (mm)',
                     min_value=20, max_value=150,
-                    value=int(default_params["Frame"][3]["frame_back_depth_g"]),
+                    value=int(_pval(default_params, "Frame", "frame_back_depth_g")),
                     step=10,
                     help="Depth/thickness of back board area"
                 )
@@ -1166,7 +1322,7 @@ def main():
                 frame_front_height = st.slider(
                     'Front Board Height (mm)',
                     min_value=0, max_value=100,
-                    value=int(default_params["Frame"][4]["frame_front_height_g"]),
+                    value=int(_pval(default_params, "Frame", "frame_front_height_g")),
                     step=5,
                     help="Height of front board (0 = no front board)"
                 )
@@ -1175,7 +1331,7 @@ def main():
                 sharp_cap_length_end = st.slider(
                     'Cap Length at Ends (mm)',
                     min_value=50, max_value=200,
-                    value=int(default_params["Frame"][5]["sharp_cap_length_end_g"]),
+                    value=int(_pval(default_params, "Frame", "sharp_cap_length_end_g")),
                     step=10,
                     help="Length of caps at the left/right ends of the pedalboard"
                 )
@@ -1183,7 +1339,7 @@ def main():
                 sharp_cap_length_middle = st.slider(
                     'Cap Length at Middle (mm)',
                     min_value=50, max_value=200,
-                    value=int(default_params["Frame"][6]["sharp_cap_length_middle_g"]),
+                    value=int(_pval(default_params, "Frame", "sharp_cap_length_middle_g")),
                     step=10,
                     help="Length of caps in the middle of the pedalboard"
                 )
@@ -1191,7 +1347,7 @@ def main():
                 sharp_cap_arc = st.slider(
                     'Arc Curvature',
                     min_value=0.0, max_value=1.0,
-                    value=float(default_params["Frame"][7]["sharp_cap_arc_g"]),
+                    value=float(_pval(default_params, "Frame", "sharp_cap_arc_g")),
                     step=0.1,
                     help="0 = linear V-shape, 1 = smooth parabolic arc"
                 )
@@ -1199,7 +1355,7 @@ def main():
                 sharp_cap_height_ratio = st.slider(
                     'Cap Height (x pedal thickness)',
                     min_value=1.0, max_value=4.0,
-                    value=float(default_params["Frame"][8]["sharp_cap_height_ratio_g"]),
+                    value=float(_pval(default_params, "Frame", "sharp_cap_height_ratio_g")),
                     step=0.25,
                     help="Cap height as a multiple of pedal thickness"
                 )
@@ -1207,7 +1363,7 @@ def main():
                 sharp_cap_notch_height = st.slider(
                     'Notch Min Height Ratio',
                     min_value=0.0, max_value=1.0,
-                    value=float(default_params["Frame"][9]["sharp_cap_notch_height_g"]),
+                    value=float(_pval(default_params, "Frame", "sharp_cap_notch_height_g")),
                     step=0.05,
                     help="Height at back of cap as ratio of full height (0.75 = 75%)"
                 )
@@ -1215,15 +1371,61 @@ def main():
                 sharp_cap_notch_width = st.slider(
                     'Notch Start Position Ratio',
                     min_value=0.0, max_value=1.0,
-                    value=float(default_params["Frame"][10]["sharp_cap_notch_width_g"]),
+                    value=float(_pval(default_params, "Frame", "sharp_cap_notch_width_g")),
                     step=0.05,
                     help="Where notch starts as ratio of cap length (0.75 = starts at 75%)"
                 )
 
                 sharp_cap_color = st.checkbox(
                     'Add Dark Caps to Sharp Pedals',
-                    value=default_params["Frame"][11]["sharp_cap_color_g"],
+                    value=_pval(default_params, "Frame", "sharp_cap_color_g"),
                     help="Add colored end caps to sharp/flat pedals"
+                )
+
+        # COMBINATION PISTONS (all keyboard-bearing consoles share these names)
+        if console_type in ("normal", "vertical", "inline"):
+            with st.expander("Combination Pistons", expanded=False):
+                pistons_enabled = st.checkbox(
+                    'Enable Combination Pistons',
+                    value=bool(_pval(default_params, "Pistons", "pistons_enabled_g", True)),
+                    key=f"{console_type}_pistons_enabled",
+                    help="Piston rail mounted under each manual, level with the key tips"
+                )
+
+                piston_count = st.slider(
+                    'Pistons per Manual',
+                    min_value=0, max_value=20,
+                    value=int(_pval(default_params, "Pistons", "piston_count_g", 9)),
+                    step=1, key=f"{console_type}_piston_count",
+                    disabled=not pistons_enabled,
+                    help="Number of piston holes, centred on the keyboard width"
+                )
+
+                piston_diameter = st.slider(
+                    'Piston Diameter (mm)',
+                    min_value=8, max_value=30,
+                    value=int(_pval(default_params, "Pistons", "piston_diameter_g", 15)),
+                    step=1, key=f"{console_type}_piston_diameter",
+                    disabled=not pistons_enabled,
+                    help="Diameter of each piston hole"
+                )
+
+                piston_spacing = st.slider(
+                    'Piston Spacing (mm)',
+                    min_value=20, max_value=100,
+                    value=int(_pval(default_params, "Pistons", "piston_spacing_g", 45)),
+                    step=1, key=f"{console_type}_piston_spacing",
+                    disabled=not pistons_enabled,
+                    help="Centre-to-centre spacing; tightened automatically if the row would overrun the rail"
+                )
+
+                piston_rail_height = st.slider(
+                    'Rail Height (mm)',
+                    min_value=10, max_value=60,
+                    value=int(_pval(default_params, "Pistons", "piston_rail_height_g", 25)),
+                    step=1, key=f"{console_type}_piston_rail_height",
+                    disabled=not pistons_enabled,
+                    help="Face height of every rail. The bottom rail stands on the table; upper rails hang from their manual. Clamped to the space each rail has, and piston holes shrink to stay inside a short rail."
                 )
 
         # DISPLAY OPTIONS (exclude pedalboard)
@@ -1268,19 +1470,31 @@ def main():
                 {"keyboard_cabinet_height_g": keyboard_cabinet_height},
                 {"keyboard_cabinet_offset_g": keyboard_cabinet_offset}
             ],
+            "Pistons": [
+                {"pistons_enabled_g": pistons_enabled},
+                {"piston_count_g": piston_count},
+                {"piston_diameter_g": piston_diameter},
+                {"piston_spacing_g": piston_spacing},
+                {"piston_rail_height_g": piston_rail_height}
+            ],
             "Keyboards": [
                 {"keyboard_num_manuals_g": v_keyboard_num_manuals},
                 {"keyboard_total_keys_g": v_keyboard_total_keys},
                 {"keyboard_total_width_g": v_keyboard_total_width},
                 {"keyboard_white_key_length_g": v_keyboard_white_key_length},
                 {"keyboard_white_key_height_g": 15},
+                {"keyboard_white_key_front_cut_depth_g": v_key_front_cut_depth},
+                {"keyboard_white_key_front_cut_height_g": v_key_front_cut_height},
                 {"keyboard_black_key_width_ratio_g": 0.65},
                 {"keyboard_black_key_length_g": 95},
                 {"keyboard_black_key_height_g": 10},
                 {"keyboard_key_gap_g": 0.5},
                 {"keyboard_base_thickness_g": 10},
                 {"keyboard_vertical_spacing_g": v_keyboard_vertical_spacing},
-                {"keyboard_depth_offset_g": v_keyboard_depth_offset}
+                {"keyboard_depth_offset_g": v_keyboard_depth_offset},
+                {"keyboard_initial_height_gap_g": v_keyboard_height_gap},
+                {"keyboard_cheeks_enabled_g": v_keyboard_cheeks_enabled},
+                {"keyboard_cheek_height_g": v_keyboard_cheek_height}
             ],
             "Speakers": [
                 {"front_speaker_width_g": front_speaker_width},
@@ -1323,6 +1537,7 @@ def main():
             "Table": [
                 {"table_height_g": inline_table_height},
                 {"table_depth_g": inline_table_depth},
+                {"keyboard_cheeks_enabled_g": inline_cheeks_enabled},
                 {"table_cheek_height_g": inline_table_cheek_height},
                 {"fill_notch_g": inline_fill_notch},
                 {"fill_notch_start_depth_g": inline_fill_notch_start},
@@ -1335,12 +1550,21 @@ def main():
                 {"volume_pedals_spacing_g": volume_pedals_spacing},
                 {"volume_pedals_hole_start_height_g": volume_pedals_hole_start_height}
             ],
+            "Pistons": [
+                {"pistons_enabled_g": pistons_enabled},
+                {"piston_count_g": piston_count},
+                {"piston_diameter_g": piston_diameter},
+                {"piston_spacing_g": piston_spacing},
+                {"piston_rail_height_g": piston_rail_height}
+            ],
             "Keyboards": [
                 {"keyboard_num_manuals_g": inline_keyboard_num_manuals},
                 {"keyboard_total_keys_g": inline_keyboard_total_keys},
                 {"keyboard_total_width_g": inline_keyboard_total_width},
                 {"keyboard_white_key_length_g": inline_keyboard_white_key_length},
                 {"keyboard_white_key_height_g": 15},
+                {"keyboard_white_key_front_cut_depth_g": inline_key_front_cut_depth},
+                {"keyboard_white_key_front_cut_height_g": inline_key_front_cut_height},
                 {"keyboard_black_key_width_ratio_g": 0.65},
                 {"keyboard_black_key_length_g": 95},
                 {"keyboard_black_key_height_g": 10},
@@ -1377,12 +1601,28 @@ def main():
                 {"top_notch_start_x_g": top_notch_start_x},
                 {"top_notch_start_y_g": top_notch_start_y}
             ],
+            "Carve": [
+                {"carve_enabled_g": carve_enabled},
+                {"carve_width_g": carve_width},
+                {"carve_depth_g": carve_depth},
+                {"carve_slope_g": carve_slope},
+                {"carve_offset_g": carve_offset}
+            ],
+            "Pistons": [
+                {"pistons_enabled_g": pistons_enabled},
+                {"piston_count_g": piston_count},
+                {"piston_diameter_g": piston_diameter},
+                {"piston_spacing_g": piston_spacing},
+                {"piston_rail_height_g": piston_rail_height}
+            ],
             "Keyboards": [
                 {"keyboard_num_manuals_g": keyboard_num_manuals},
                 {"keyboard_total_keys_g": keyboard_total_keys},
                 {"keyboard_total_width_g": keyboard_total_width},  # Total width - key width calculated from this
                 {"keyboard_white_key_length_g": keyboard_white_key_length},
                 {"keyboard_white_key_height_g": 15},     # Organ white key height (mm)
+                {"keyboard_white_key_front_cut_depth_g": key_front_cut_depth},
+                {"keyboard_white_key_front_cut_height_g": key_front_cut_height},
                 {"keyboard_black_key_width_ratio_g": 0.65},  # Black key width as ratio of white key
                 {"keyboard_black_key_length_g": 95},     # Standard, not exposed in UI
                 {"keyboard_black_key_height_g": 10},     # Organ black key height (mm)
@@ -1391,7 +1631,9 @@ def main():
                 {"keyboard_vertical_spacing_g": keyboard_vertical_spacing},
                 {"keyboard_depth_offset_g": keyboard_depth_offset},
                 {"keyboard_y_offset_g": keyboard_y_offset},
-                {"keyboard_initial_height_gap_g": keyboard_height_gap}
+                {"keyboard_initial_height_gap_g": keyboard_height_gap},
+                {"keyboard_cheeks_enabled_g": keyboard_cheeks_enabled},
+                {"keyboard_cheek_height_g": keyboard_cheek_height}
             ],
             "Display": [
                 {"show_dimensions_g": show_dimensions}

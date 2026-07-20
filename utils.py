@@ -47,9 +47,69 @@ class DotDict:
                     setattr(self, key, value)
 
 
+def _insert_carve(points, max_height, carve_width, carve_depth, carve_slope, carve_offset):
+    """
+    Splice a centred recess into the polygon edge that lies at y == max_height.
+
+    The recess is a shallow trapezoid: a flat bottom `carve_width` wide sitting
+    `carve_depth` below the edge, joined to the edge by a diagonal ramp of
+    horizontal run `carve_slope` on each side.
+
+    The edge at max_height is found by scanning for two consecutive points that
+    both have y == max_height, so this works for the plain rectangle, the
+    slanted-notch polygon and the flipped-notch polygon alike.
+
+    Args:
+        points: List of (x, y) tuples describing the board outline
+        max_height: The y value of the edge to carve
+        carve_width: Width of the flat bottom of the recess (mm)
+        carve_depth: How far the recess eats into the board (mm)
+        carve_slope: Horizontal run of each diagonal ramp (mm)
+        carve_offset: Shift of the recess centre off the edge midpoint (mm)
+
+    Returns:
+        New list of (x, y) tuples, or the original list if the carve does not fit
+    """
+    if carve_width <= 0 or carve_depth <= 0:
+        return points
+
+    n = len(points)
+    for i in range(n):
+        a = points[i]
+        b = points[(i + 1) % n]
+        if a[1] != max_height or b[1] != max_height:
+            continue
+
+        edge_lo, edge_hi = min(a[0], b[0]), max(a[0], b[0])
+        centre = (edge_lo + edge_hi) / 2 + carve_offset
+        flat_lo = centre - carve_width / 2
+        flat_hi = centre + carve_width / 2
+        ramp_lo = flat_lo - carve_slope
+        ramp_hi = flat_hi + carve_slope
+
+        # Bail out rather than produce a self-intersecting outline
+        if ramp_lo <= edge_lo or ramp_hi >= edge_hi or carve_depth >= max_height:
+            return points
+
+        carve = [
+            (ramp_lo, max_height),
+            (flat_lo, max_height - carve_depth),
+            (flat_hi, max_height - carve_depth),
+            (ramp_hi, max_height),
+        ]
+        # Walk the carve in the same direction the edge is travelling
+        if a[0] > b[0]:
+            carve.reverse()
+
+        return points[:i + 1] + carve + points[i + 1:]
+
+    return points
+
+
 def create_board(max_width, max_height, board_thickness, position, rotation,
                 min_width=0, min_height=0, rectangular_holes=[], circular_holes=[],
-                show_dimensions=False, material=None, flip_notch=False):
+                show_dimensions=False, material=None, flip_notch=False,
+                carve_width=0, carve_depth=0, carve_slope=0, carve_offset=0):
     """
     Create a board with optional slanted edges and holes using build123d.
 
@@ -72,6 +132,11 @@ def create_board(max_width, max_height, board_thickness, position, rotation,
                   If specified, this will be stored as the part's label and used
                   by the Three.js viewer to apply appropriate material instead of wood.
                   Supported values: "black", "white", "metal", "dark_wood"
+        carve_width: Width of the flat bottom of the centred recess on the
+                     max_height edge (0 = no recess)
+        carve_depth: How far that recess eats into the board (0 = no recess)
+        carve_slope: Horizontal run of each diagonal ramp of the recess
+        carve_offset: Shift of the recess centre off the edge midpoint
 
     Returns:
         Part object representing the board
@@ -134,6 +199,9 @@ def create_board(max_width, max_height, board_thickness, position, rotation,
         ]
     elif min_width == 0:
         points = [points[0], points[1], points[2], points[4]]  # Remove slanted edge
+
+    points = _insert_carve(points, max_height, carve_width, carve_depth,
+                           carve_slope, carve_offset)
 
     # Create the board by extruding the shape
     with BuildPart() as board_builder:
