@@ -258,6 +258,106 @@ def generate_keyboard_stack(parameters, base_position=(0, 0, 0)):
     return Compound(children=keyboards)
 
 
+def get_rocker_tab_layout(parameters):
+    """
+    Compute the local layout of a bank of rocker (stop) tabs.
+
+    Rocker tabs are the little switches on the stop panel. They are drawn in
+    groups (a group is one register family), the tabs evenly spaced within a
+    group and a wider gap between groups. This returns their positions relative
+    to the centre of the whole bank; a console places the bank by supplying the
+    centre point.
+
+    Args:
+        parameters: Parameter dictionary
+
+    Returns:
+        dict with 'tab_width', 'tab_height', 'tab_depth' and 'x_offsets'
+        (centre X of each tab, measured from the middle of the bank), or None
+        when the tabs are disabled or degenerate.
+    """
+    p = DotDict(parameters)
+
+    if not getattr(p, 'rocker_tabs_enabled_g', False):
+        return None
+
+    groups = int(getattr(p, 'rocker_tab_groups_g', 1))
+    per_group = int(getattr(p, 'rocker_tab_group_size_g', 8))
+    tab_w = getattr(p, 'rocker_tab_width_g', 2)
+    tab_h = getattr(p, 'rocker_tab_height_g', 7)
+    tab_d = getattr(p, 'rocker_tab_depth_g', 5)
+    tab_gap = getattr(p, 'rocker_tab_gap_g', 1)
+    group_gap = getattr(p, 'rocker_tab_group_gap_g', 5)
+    if groups <= 0 or per_group <= 0 or tab_w <= 0 or tab_h <= 0:
+        return None
+
+    group_span = per_group * tab_w + (per_group - 1) * tab_gap
+    total = groups * group_span + (groups - 1) * group_gap
+
+    x_offsets = []
+    x = -total / 2                      # left edge of the whole bank
+    for g in range(groups):
+        for t in range(per_group):
+            x_offsets.append(x + tab_w / 2)
+            x += tab_w + (tab_gap if t < per_group - 1 else 0)
+        x += group_gap                 # step over the wider gap to the next group
+
+    return {
+        'tab_width': tab_w,
+        'tab_height': tab_h,
+        'tab_depth': tab_d,
+        'total_width': total,
+        'x_offsets': x_offsets,
+    }
+
+
+def generate_rocker_tabs(parameters, front_y, center_x, z_center):
+    """
+    Generate a bank of rocker tabs protruding from a panel face.
+
+    Rocker tabs are hardware, not wood: each is a small moulded block, so they
+    are built directly as boxes rather than through the board generator, and
+    they do not belong in the timber cut list. This is deliberately a separate
+    primitive so it can grow later (a bevelled or engraved tab shape) without
+    touching the board code.
+
+    Args:
+        parameters: Parameter dictionary
+        front_y: Y of the panel face the tabs sit on; they protrude toward +Y
+        center_x: X the bank is centred on
+        z_center: Z the row of tabs is centred on
+
+    Returns:
+        List of Part objects (empty when the tabs are disabled)
+    """
+    layout = get_rocker_tab_layout(parameters)
+    if layout is None:
+        return []
+
+    tab_w = layout['tab_width']
+    tab_h = layout['tab_height']
+    tab_d = layout['tab_depth']
+
+    p = DotDict(parameters)
+    material = getattr(p, 'rocker_tab_material_g', 'black')
+    # Small standoff so the tab's back face is not coplanar with the panel,
+    # which would z-fight in the renderer.
+    standoff = getattr(p, 'rocker_tab_standoff_g', 0.5)
+
+    with BuildPart() as tab_builder:
+        Box(tab_w, tab_d, tab_h)       # X = width, Y = protrusion, Z = height
+    proto = tab_builder.part
+
+    parts = []
+    for dx in layout['x_offsets']:
+        # Box is centred on the origin; sit its back face just off the panel
+        tab = Pos(center_x + dx, front_y + standoff + tab_d / 2, z_center) * proto
+        tab.label = f"material:{material}"
+        parts.append(tab)
+
+    return parts
+
+
 def resolve_depth_offset(parameters):
     """
     Return the depth offset actually used when stacking manuals.
@@ -582,6 +682,71 @@ def generate_piston_rails(parameters, base_position, board_thickness,
             circular_holes=spec['holes'],
             show_dimensions=show_dimensions
         ))
+
+    return parts
+
+
+def generate_piston_buttons(parameters, base_position, board_thickness,
+                            rail_base_z=None):
+    """
+    Generate the piston buttons that pass through the rail holes.
+
+    Each is a plastic cylinder seated in a rail hole and standing proud of the
+    rail face by piston_button_protrusion_g. They are hardware, not wood, so
+    they are built directly as cylinders and kept out of the timber cut list.
+    Placement mirrors generate_piston_rails exactly, so a button sits in every
+    hole.
+
+    Args:
+        parameters: Parameter dictionary
+        base_position: (x, y, z) base position of the manual stack
+        board_thickness: Depth of the rail front-to-back (mm)
+        rail_base_z: Z of the table surface (bottom rail stands on it)
+
+    Returns:
+        List of Part objects (empty when the buttons are disabled)
+    """
+    p = DotDict(parameters)
+
+    if not getattr(p, 'piston_buttons_enabled_g', False):
+        return []
+
+    first_rail_max = (None if rail_base_z is None
+                      else base_position[2] - rail_base_z)
+    specs = get_piston_rail_specs(parameters, board_thickness, first_rail_max)
+    if not specs:
+        return []
+
+    protrusion = getattr(p, 'piston_button_protrusion_g', 11)
+    clearance = getattr(p, 'piston_button_clearance_g', 1)
+    material = getattr(p, 'piston_button_material_g', 'plastic')
+    vertical_spacing = getattr(p, 'keyboard_vertical_spacing_g', 80)
+    depth_offset = resolve_depth_offset(parameters)
+    kbd_depth = get_keyboard_dimensions(parameters)['depth']
+
+    length = board_thickness + protrusion   # seated through the rail, proud in front
+    cy_off = (protrusion - board_thickness) / 2
+
+    parts = []
+    for n, spec in enumerate(specs):
+        holes = spec['holes']
+        if not holes:
+            continue
+        front_y = base_position[1] - n * depth_offset + kbd_depth
+        if n == 0 and rail_base_z is not None:
+            z = rail_base_z
+        else:
+            z = base_position[2] + n * vertical_spacing - spec['height']
+
+        # All holes in a rail share a diameter, so build the cylinder once and
+        # copy it to each hole rather than rebuilding it every time.
+        r = max(0.5, (holes[0][2] - clearance) / 2)
+        proto = Rot(90, 0, 0) * Cylinder(radius=r, height=length)
+        cy = front_y + cy_off
+        for hx, hy, _ in holes:
+            button = Pos(base_position[0] + hx, cy, z + hy) * proto
+            button.label = f"material:{material}"
+            parts.append(button)
 
     return parts
 

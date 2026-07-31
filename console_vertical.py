@@ -22,7 +22,7 @@ from utils import DotDict, create_board
 from keyboard import (generate_keyboard_stack, get_keyboard_dimensions,
                       generate_keyboard_cheeks, get_keyboard_cheek_steps,
                       generate_piston_rails, get_piston_rail_specs,
-                      get_cheek_layers)
+                      get_cheek_layers, generate_piston_buttons)
 
 
 def get_default_parameters():
@@ -56,7 +56,11 @@ def get_default_parameters():
             {"piston_count_g": 9},         # Number of pistons per rail
             {"piston_diameter_g": 15},     # Piston hole diameter (mm)
             {"piston_spacing_g": 45},      # Centre-to-centre spacing (mm)
-            {"piston_rail_height_g": 38}   # Rail face height (mm); rail 1 is auto-sized to reach the table
+            {"piston_rail_height_g": 38},  # Rail face height (mm); rail 1 is auto-sized to reach the table
+            {"piston_buttons_enabled_g": True},   # Plastic buttons through the rail holes
+            {"piston_button_protrusion_g": 11},   # How far each button stands proud of the rail (mm)
+            {"piston_button_clearance_g": 1},     # Button diameter = hole diameter - clearance (mm)
+            {"piston_button_material_g": "plastic"}
         ],
         "Keyboards": [
             {"keyboard_num_manuals_g": 2},           # Number of keyboards (manuals)
@@ -594,6 +598,12 @@ def generate_console(parameters):
         parts.extend(generate_piston_rails(
             parameters, keyboard_position, p.general_board_thickness_g,
             rail_base_z=p.base_height_g, show_dimensions=show_dims
+        ))
+
+        # Plastic buttons through the rail holes
+        parts.extend(generate_piston_buttons(
+            parameters, keyboard_position, p.general_board_thickness_g,
+            rail_base_z=p.base_height_g
         ))
 
     # Note Stand Front Panel

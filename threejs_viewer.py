@@ -640,6 +640,13 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                     roughness: 0.25,
                     clearcoat: 0.7,
                     clearcoatRoughness: 0.1
+                }},
+                "plastic": {{
+                    color: 0xf2f2ec,
+                    metalness: 0.0,
+                    roughness: 0.35,
+                    clearcoat: 0.7,
+                    clearcoatRoughness: 0.08
                 }}
             }};
 
@@ -1142,7 +1149,8 @@ def create_threejs_gltf_viewer(gltf_file_path, wood_texture_path=None, height=50
                     'white': '#f5f5f0',
                     'metal': '#888888',
                     'dark_wood': '#3d2817',
-                    'ebony': '#1c1c1c'
+                    'ebony': '#1c1c1c',
+                    'plastic': '#f2f2ec'
                 }};
 
                 // Collect material data for meshes (MeshPhysicalMaterial doesn't serialize well)

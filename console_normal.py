@@ -22,7 +22,8 @@ from keyboard import (generate_keyboard_stack, get_keyboard_dimensions,
                       get_keyboard_stack_dimensions, generate_keyboard_cheeks,
                       get_keyboard_cheek_steps, generate_piston_rails,
                       get_piston_rail_specs, get_cheek_thickness,
-                      get_cheek_layers)
+                      get_cheek_layers, generate_rocker_tabs, get_rocker_tab_layout,
+                      generate_piston_buttons)
 
 
 def get_knob_stair_specs(parameters):
@@ -234,6 +235,75 @@ def generate_knob_stairs(parameters, show_dimensions=False):
     return parts
 
 
+def generate_knob_stair_knobs(parameters):
+    """
+    Generate the drawknobs sitting in the knob-stair riser holes.
+
+    Each knob is a little black plastic trumpet flaring out of its hole, capped
+    with a thin white disc on the front. They are hardware, not wood, and are
+    kept out of the timber cut list. All knobs are identical, so the trumpet and
+    the cap are each built once and copied to every hole.
+
+    Args:
+        parameters: Parameter dictionary
+
+    Returns:
+        List of Part objects (empty when disabled)
+    """
+    p = DotDict(parameters)
+
+    if not getattr(p, 'knob_stair_knobs_enabled_g', False):
+        return []
+
+    spec = get_knob_stair_specs(parameters)
+    if spec is None:
+        return []
+
+    bt = p.general_board_thickness_g
+    knob_d = getattr(p, 'knob_stair_knob_diameter_g', 30)
+    protr = getattr(p, 'knob_stair_knob_protrusion_g', 15)
+    cap_t = getattr(p, 'knob_stair_knob_cap_thickness_g', 1)
+    body_mat = getattr(p, 'knob_stair_knob_body_material_g', 'black')
+    cap_mat = getattr(p, 'knob_stair_knob_cap_material_g', 'white')
+
+    base_d = getattr(p, 'knob_stair_knob_base_diameter_g', spec['hole_diameter'] - 2)
+    flare = getattr(p, 'knob_stair_knob_flare_g', 3.0)   # >1 keeps a neck then bells out
+    r_front = knob_d / 2
+    r_back = max(1.0, base_d / 2)   # trumpet neck, sits inside the hole
+
+    # Prototype horn: a revolved profile that stays near the neck radius for most
+    # of its length then flares to the bell, like a gramophone horn, rather than
+    # a straight cone. Built once along +Y with its neck at y=0.
+    n = 16
+    outer = [(r_back + (r_front - r_back) * ((i / n) ** flare), (i / n) * protr)
+             for i in range(n + 1)]
+    with BuildPart() as horn:
+        with BuildSketch(Plane.XY):
+            with BuildLine():
+                Polyline([(0, 0)] + outer + [(0, protr), (0, 0)])
+            make_face()
+        revolve(axis=Axis.Y)
+    trumpet0 = horn.part
+    cap0 = Pos(0, protr + cap_t / 2, 0) * (Rot(90, 0, 0) * Cylinder(
+        radius=r_front, height=cap_t))
+
+    parts = []
+    for x_edge in (spec['x_right'], spec['x_left']):
+        for step in spec['steps']:
+            for hx, hy, _ in step['holes']:
+                wx = x_edge - spec['width'] + hx    # world X of the hole centre
+                wz = step['riser_z_bottom'] + hy
+                base = Pos(wx, step['front_y'], wz)
+                t = base * trumpet0
+                t.label = f"material:{body_mat}"
+                c = base * cap0
+                c.label = f"material:{cap_mat}"
+                parts.append(t)
+                parts.append(c)
+
+    return parts
+
+
 def get_default_parameters():
     """
     Returns the default parameter set for the normal console.
@@ -276,14 +346,38 @@ def get_default_parameters():
             {"knob_stair_hole_diameter_g": 25},   # Drawknob hole diameter (mm)
             {"knob_stair_hole_spacing_g": 55},    # Centre-to-centre knob spacing (mm)
             {"knob_stair_gap_g": 20},             # Clear gap between the cheek and the staircase (mm)
-            {"knob_stair_front_inset_g": 20}      # Setback of the bottom riser from the table front edge (mm)
+            {"knob_stair_front_inset_g": 20},     # Setback of the bottom riser from the table front edge (mm)
+            {"knob_stair_knobs_enabled_g": True},     # Draw the knobs in the holes
+            {"knob_stair_knob_diameter_g": 35},       # Knob bell diameter (mm)
+            {"knob_stair_knob_base_diameter_g": 18},  # Knob stem (start) diameter (mm)
+            {"knob_stair_knob_flare_g": 3.0},         # Horn flare (>1 = long neck, late bell)
+            {"knob_stair_knob_protrusion_g": 50},     # How far the knob flares out of the hole (mm)
+            {"knob_stair_knob_cap_thickness_g": 1},   # White cap thickness (mm)
+            {"knob_stair_knob_body_material_g": "black"},
+            {"knob_stair_knob_cap_material_g": "white"}
+        ],
+        "Rocker_tabs": [
+            {"rocker_tabs_enabled_g": True},   # Rocker (stop) tab bank on the upper front panel
+            {"rocker_tab_groups_g": 4},        # Number of groups (register families)
+            {"rocker_tab_group_size_g": 8},    # Tabs per group
+            {"rocker_tab_width_g": 25},        # Width of each tab (mm)
+            {"rocker_tab_height_g": 70},       # Height of each tab (mm)
+            {"rocker_tab_depth_g": 7},         # How far each tab stands off the panel (mm)
+            {"rocker_tab_gap_g": 2},           # Gap between tabs within a group (mm)
+            {"rocker_tab_group_gap_g": 10},    # Gap between groups (mm)
+            {"rocker_tab_material_g": "plastic"},  # Tab material (white plastic)
+            {"rocker_tab_standoff_g": 0.5}     # Gap from the panel face (avoids z-fighting)
         ],
         "Pistons": [
             {"pistons_enabled_g": True},   # Combination piston rail under each manual
             {"piston_count_g": 9},         # Number of pistons per rail
             {"piston_diameter_g": 15},     # Piston hole diameter (mm)
             {"piston_spacing_g": 45},      # Centre-to-centre spacing (mm)
-            {"piston_rail_height_g": 38}   # Rail face height (mm); rail 1 is auto-sized to reach the table
+            {"piston_rail_height_g": 38},  # Rail face height (mm); rail 1 is auto-sized to reach the table
+            {"piston_buttons_enabled_g": True},   # Plastic buttons through the rail holes
+            {"piston_button_protrusion_g": 11},   # How far each button stands proud of the rail (mm)
+            {"piston_button_clearance_g": 1},     # Button diameter = hole diameter - clearance (mm)
+            {"piston_button_material_g": "plastic"}
         ],
         "Keyboards": [
             {"keyboard_num_manuals_g": 2},           # Number of keyboards (manuals)
@@ -676,10 +770,32 @@ def generate_console(parameters):
         # Terraced drawknob jambs either side of the manuals
         parts.extend(generate_knob_stairs(parameters, show_dimensions=show_dims))
 
+        # Drawknobs in the jamb holes
+        parts.extend(generate_knob_stair_knobs(parameters))
+
         # Combination piston rail under each manual
         parts.extend(generate_piston_rails(
             parameters, keyboard_position, p.general_board_thickness_g,
             rail_base_z=table_top_z, show_dimensions=show_dims
+        ))
+
+        # Plastic buttons through the rail holes
+        parts.extend(generate_piston_buttons(
+            parameters, keyboard_position, p.general_board_thickness_g,
+            rail_base_z=table_top_z
+        ))
+
+        # Rocker (stop) tab bank on the upper front board, centred between the
+        # top of the highest manual and the top of that board.
+        top_manual_top = (keyboard_position[2]
+                          + (num_manuals - 1) * getattr(p, 'keyboard_vertical_spacing_g', 73)
+                          + kbd_dims['height'])
+        board_top_z = p.base_height_g + p.top_height_g - p.general_board_thickness_g
+        parts.extend(generate_rocker_tabs(
+            parameters,
+            front_y=p.base_depth_g,
+            center_x=-p.general_board_thickness_g - p.organ_internal_width_g / 2,
+            z_center=(top_manual_top + board_top_z) / 2
         ))
 
     # Combine all parts into a compound

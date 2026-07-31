@@ -128,6 +128,37 @@ _PRESET_WIDGET_KEYS = {
 }
 
 
+def get_builtin_presets():
+    """Named presets shipped with the app, built from the module defaults so
+    they stay in sync with the code."""
+    simple = console_inline.get_default_parameters()
+    for section in simple.values():
+        for item in section:
+            if 'volume_pedals_number_g' in item:
+                item['volume_pedals_number_g'] = 2   # only 2 pedals
+    return {
+        "Simple 2 manuals": {"console_type": "inline", "parameters": simple},
+    }
+
+
+def _apply_builtin_preset():
+    """on_click callback for the built-in preset picker. Loads the preset the
+    same way an uploaded file would: clear the widgets and seed the raw params."""
+    name = st.session_state.get("builtin_preset_sel")
+    presets = get_builtin_presets()
+    if name not in presets:
+        return
+    preset = presets[name]
+    preserve = {
+        "_preset_applied": True,
+        "_pending_console_type": preset["console_type"],
+        "_preset_params": preset["parameters"],
+        "_preset_type": preset["console_type"],
+    }
+    st.session_state.clear()
+    st.session_state.update(preserve)
+
+
 def _apply_preset_callback():
     """on_change callback for the preset file uploader."""
     uploaded = st.session_state.get("preset_uploader")
@@ -214,6 +245,16 @@ def main():
         div[data-testid="stFileUploaderDropzoneInstructions"]{display:none}
         </style>""", unsafe_allow_html=True)
         with st.expander("Presets", expanded=False):
+            st.caption("Built-in")
+            _builtin = get_builtin_presets()
+            col_sel, col_apply = st.columns([2, 1])
+            with col_sel:
+                st.selectbox("Built-in preset", list(_builtin.keys()),
+                             key="builtin_preset_sel", label_visibility="collapsed")
+            with col_apply:
+                st.button("Apply", key="apply_builtin_preset",
+                          on_click=_apply_builtin_preset)
+
             st.caption("Save")
             col_name, col_save = st.columns([2, 1])
             with col_name:
@@ -1133,6 +1174,41 @@ def main():
                     inline_fill_notch_start = int(_pval(default_params, "Table", "fill_notch_start_depth_g", 350))
                     inline_fill_notch_front_width = int(_pval(default_params, "Table", "fill_notch_front_width_g", 20))
 
+            with st.expander("Music Stand", expanded=False):
+                music_stand_enabled = st.checkbox(
+                    'Enable Music Stand',
+                    value=bool(_pval(default_params, "Music_stand", "music_stand_enabled_g", True)),
+                    key="inline_music_stand_enabled",
+                    help="Angled music desk on the console top"
+                )
+                music_stand_width = st.slider(
+                    'Desk Width (mm)', min_value=300, max_value=1100,
+                    value=int(_pval(default_params, "Music_stand", "music_stand_width_g", 700)),
+                    step=10, key="inline_music_stand_width", disabled=not music_stand_enabled
+                )
+                music_stand_height = st.slider(
+                    'Desk Height (mm)', min_value=100, max_value=500,
+                    value=int(_pval(default_params, "Music_stand", "music_stand_height_g", 280)),
+                    step=10, key="inline_music_stand_height", disabled=not music_stand_enabled
+                )
+                music_stand_angle = st.slider(
+                    'Recline Angle (deg)', min_value=0, max_value=45,
+                    value=int(_pval(default_params, "Music_stand", "music_stand_angle_g", 15)),
+                    step=1, key="inline_music_stand_angle", disabled=not music_stand_enabled,
+                    help="Lean of the desk back from vertical"
+                )
+                music_stand_pos_y = st.slider(
+                    'Desk Position (mm from back)', min_value=0, max_value=250,
+                    value=int(_pval(default_params, "Music_stand", "music_stand_pos_y_g", 150)),
+                    step=10, key="inline_music_stand_pos_y", disabled=not music_stand_enabled
+                )
+                music_stand_ledge = st.slider(
+                    'Music Ledge Depth (mm)', min_value=0, max_value=100,
+                    value=int(_pval(default_params, "Music_stand", "music_stand_ledge_g", 40)),
+                    step=5, key="inline_music_stand_ledge", disabled=not music_stand_enabled,
+                    help="Lip at the foot of the desk (0 = none)"
+                )
+
             with st.expander("Volume Pedals", expanded=False):
                 volume_pedals_width = st.slider(
                     'Pedal Width (mm)',
@@ -1524,6 +1600,93 @@ def main():
                     help="Face height of every rail. The bottom rail stands on the table; upper rails hang from their manual. Clamped to the space each rail has, and piston holes shrink to stay inside a short rail."
                 )
 
+                st.markdown("**Piston buttons**")
+                piston_buttons_enabled = st.checkbox(
+                    'Render Piston Buttons',
+                    value=bool(_pval(default_params, "Pistons", "piston_buttons_enabled_g", False)),
+                    key=f"{console_type}_piston_buttons_enabled",
+                    disabled=not pistons_enabled,
+                    help="White plastic cylinders passing through each rail hole"
+                )
+
+                piston_button_protrusion = st.slider(
+                    'Button Protrusion (mm)',
+                    min_value=0, max_value=40,
+                    value=int(_pval(default_params, "Pistons", "piston_button_protrusion_g", 11)),
+                    step=1, key=f"{console_type}_piston_button_protrusion",
+                    disabled=not (pistons_enabled and piston_buttons_enabled),
+                    help="How far each button stands proud of the rail face"
+                )
+
+                piston_button_clearance = st.slider(
+                    'Button Clearance (mm)',
+                    min_value=0, max_value=6,
+                    value=int(_pval(default_params, "Pistons", "piston_button_clearance_g", 1)),
+                    step=1, key=f"{console_type}_piston_button_clearance",
+                    disabled=not (pistons_enabled and piston_buttons_enabled),
+                    help="Button diameter = hole diameter minus this"
+                )
+
+        # ROCKER (STOP) TABS
+        if console_type in ("normal", "inline"):
+            with st.expander("Rocker Tabs", expanded=False):
+                rocker_tabs_enabled = st.checkbox(
+                    'Enable Rocker Tabs',
+                    value=bool(_pval(default_params, "Rocker_tabs", "rocker_tabs_enabled_g", True)),
+                    key=f"{console_type}_rocker_tabs_enabled",
+                    help="Bank of stop tabs on the upper front panel, above the top manual"
+                )
+
+                rocker_tab_groups = st.slider(
+                    'Groups', min_value=1, max_value=8,
+                    value=int(_pval(default_params, "Rocker_tabs", "rocker_tab_groups_g", 3)),
+                    step=1, key=f"{console_type}_rocker_tab_groups",
+                    disabled=not rocker_tabs_enabled,
+                    help="Number of tab groups (register families)"
+                )
+
+                rocker_tab_group_size = st.slider(
+                    'Tabs per Group', min_value=1, max_value=16,
+                    value=int(_pval(default_params, "Rocker_tabs", "rocker_tab_group_size_g", 8)),
+                    step=1, key=f"{console_type}_rocker_tab_group_size",
+                    disabled=not rocker_tabs_enabled
+                )
+
+                rocker_tab_width = st.slider(
+                    'Tab Width (mm)', min_value=4, max_value=40,
+                    value=int(_pval(default_params, "Rocker_tabs", "rocker_tab_width_g", 25)),
+                    step=1, key=f"{console_type}_rocker_tab_width",
+                    disabled=not rocker_tabs_enabled
+                )
+
+                rocker_tab_height = st.slider(
+                    'Tab Height (mm)', min_value=10, max_value=120,
+                    value=int(_pval(default_params, "Rocker_tabs", "rocker_tab_height_g", 70)),
+                    step=1, key=f"{console_type}_rocker_tab_height",
+                    disabled=not rocker_tabs_enabled
+                )
+
+                rocker_tab_depth = st.slider(
+                    'Tab Protrusion (mm)', min_value=1, max_value=20,
+                    value=int(_pval(default_params, "Rocker_tabs", "rocker_tab_depth_g", 7)),
+                    step=1, key=f"{console_type}_rocker_tab_depth",
+                    disabled=not rocker_tabs_enabled
+                )
+
+                rocker_tab_gap = st.slider(
+                    'Gap Within Group (mm)', min_value=0, max_value=20,
+                    value=int(_pval(default_params, "Rocker_tabs", "rocker_tab_gap_g", 2)),
+                    step=1, key=f"{console_type}_rocker_tab_gap",
+                    disabled=not rocker_tabs_enabled
+                )
+
+                rocker_tab_group_gap = st.slider(
+                    'Gap Between Groups (mm)', min_value=0, max_value=50,
+                    value=int(_pval(default_params, "Rocker_tabs", "rocker_tab_group_gap_g", 10)),
+                    step=1, key=f"{console_type}_rocker_tab_group_gap",
+                    disabled=not rocker_tabs_enabled
+                )
+
         # DISPLAY OPTIONS (exclude pedalboard)
         if console_type != "pedalboard":
             with st.expander("Display Options", expanded=False):
@@ -1641,6 +1804,14 @@ def main():
                 {"fill_notch_start_depth_g": inline_fill_notch_start},
                 {"fill_notch_front_width_g": inline_fill_notch_front_width}
             ],
+            "Music_stand": [
+                {"music_stand_enabled_g": music_stand_enabled},
+                {"music_stand_width_g": music_stand_width},
+                {"music_stand_height_g": music_stand_height},
+                {"music_stand_angle_g": music_stand_angle},
+                {"music_stand_pos_y_g": music_stand_pos_y},
+                {"music_stand_ledge_g": music_stand_ledge}
+            ],
             "Volume_pedals": [
                 {"volume_pedals_width_g": volume_pedals_width},
                 {"volume_pedals_height_g": volume_pedals_height},
@@ -1653,7 +1824,23 @@ def main():
                 {"piston_count_g": piston_count},
                 {"piston_diameter_g": piston_diameter},
                 {"piston_spacing_g": piston_spacing},
-                {"piston_rail_height_g": piston_rail_height}
+                {"piston_rail_height_g": piston_rail_height},
+                {"piston_buttons_enabled_g": piston_buttons_enabled},
+                {"piston_button_protrusion_g": piston_button_protrusion},
+                {"piston_button_clearance_g": piston_button_clearance},
+                {"piston_button_material_g": "plastic"}
+            ],
+            "Rocker_tabs": [
+                {"rocker_tabs_enabled_g": rocker_tabs_enabled},
+                {"rocker_tab_groups_g": rocker_tab_groups},
+                {"rocker_tab_group_size_g": rocker_tab_group_size},
+                {"rocker_tab_width_g": rocker_tab_width},
+                {"rocker_tab_height_g": rocker_tab_height},
+                {"rocker_tab_depth_g": rocker_tab_depth},
+                {"rocker_tab_gap_g": rocker_tab_gap},
+                {"rocker_tab_group_gap_g": rocker_tab_group_gap},
+                {"rocker_tab_material_g": "plastic"},
+                {"rocker_tab_standoff_g": 0.5}
             ],
             "Keyboards": [
                 {"keyboard_num_manuals_g": inline_keyboard_num_manuals},
@@ -1720,7 +1907,23 @@ def main():
                 {"piston_count_g": piston_count},
                 {"piston_diameter_g": piston_diameter},
                 {"piston_spacing_g": piston_spacing},
-                {"piston_rail_height_g": piston_rail_height}
+                {"piston_rail_height_g": piston_rail_height},
+                {"piston_buttons_enabled_g": piston_buttons_enabled},
+                {"piston_button_protrusion_g": piston_button_protrusion},
+                {"piston_button_clearance_g": piston_button_clearance},
+                {"piston_button_material_g": "plastic"}
+            ],
+            "Rocker_tabs": [
+                {"rocker_tabs_enabled_g": rocker_tabs_enabled},
+                {"rocker_tab_groups_g": rocker_tab_groups},
+                {"rocker_tab_group_size_g": rocker_tab_group_size},
+                {"rocker_tab_width_g": rocker_tab_width},
+                {"rocker_tab_height_g": rocker_tab_height},
+                {"rocker_tab_depth_g": rocker_tab_depth},
+                {"rocker_tab_gap_g": rocker_tab_gap},
+                {"rocker_tab_group_gap_g": rocker_tab_group_gap},
+                {"rocker_tab_material_g": "plastic"},
+                {"rocker_tab_standoff_g": 0.5}
             ],
             "Keyboards": [
                 {"keyboard_num_manuals_g": keyboard_num_manuals},

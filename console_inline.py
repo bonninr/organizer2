@@ -22,12 +22,14 @@ Usage:
     from console_inline import generate_console, generate_board_list, get_default_parameters
 """
 
+import math
 from build123d import *
 from utils import DotDict, create_board
 from keyboard import (generate_keyboard_stack, get_keyboard_dimensions,
                       generate_keyboard_cheeks, get_keyboard_cheek_steps,
                       generate_piston_rails, get_piston_rail_specs,
-                      get_cheek_layers)
+                      get_cheek_layers, generate_rocker_tabs, get_rocker_tab_layout,
+                      generate_piston_buttons)
 
 
 def _keyboard_base_position(parameters):
@@ -62,12 +64,61 @@ def _cheek_clearance(parameters):
             + getattr(p, 'table_cheek_height_g', 0))
 
 
+def generate_music_stand(parameters):
+    """
+    Generate the music desk: an angled board standing on the console top,
+    leaning back, with a small ledge at its foot to hold the music.
+
+    Args:
+        parameters: Parameter dictionary
+
+    Returns:
+        List of Part objects (empty when disabled)
+    """
+    p = DotDict(parameters)
+
+    if not getattr(p, 'music_stand_enabled_g', False):
+        return []
+
+    bt = p.general_board_thickness_g
+    width = getattr(p, 'music_stand_width_g', 700)
+    height = getattr(p, 'music_stand_height_g', 280)
+    angle = getattr(p, 'music_stand_angle_g', 15)
+    pos_y = getattr(p, 'music_stand_pos_y_g', 150)
+    ledge = getattr(p, 'music_stand_ledge_g', 40)
+    if width <= 0 or height <= 0:
+        return []
+
+    center_x = -bt - p.organ_internal_width_g / 2
+    top_z = p.total_height_g
+    parts = []
+
+    # Angled back board. max_height is the sloped length so the vertical rise
+    # stays 'height' whatever the recline angle.
+    board_len = height / math.cos(math.radians(angle))
+    parts.append(create_board(
+        max_width=width, max_height=board_len, board_thickness=bt,
+        position=(center_x + width / 2, pos_y, top_z),
+        rotation=(0, -angle, 90)
+    ))
+
+    # Ledge at the foot, a shallow horizontal lip in front of the board
+    if ledge > 0:
+        parts.append(create_board(
+            max_width=width, max_height=ledge, board_thickness=bt,
+            position=(center_x + width / 2, pos_y, top_z),
+            rotation=(0, 90, 90)
+        ))
+
+    return parts
+
+
 def get_default_parameters():
     return {
         "General_and_base": [
             {"organ_internal_width_g": 1100},
             {"general_board_thickness_g": 18},
-            {"total_height_g": 900},
+            {"total_height_g": 1000},
             {"console_depth_g": 250},
             {"base_front_distance_g": 10}
         ],
@@ -77,7 +128,7 @@ def get_default_parameters():
             {"keyboard_cheeks_enabled_g": True},  # vertical boards flanking the manuals
             {"keyboard_cheek_layers_g": 2},       # boards laminated side by side per cheek
             {"table_cheek_height_g": 0},         # extra cheek rise above the black keys
-            {"fill_notch_g": False},              # True = full depth with notch, False = short (cabinet depth)
+            {"fill_notch_g": True},               # full-depth lateral boards with a diagonal notch toward the player
             {"fill_notch_start_depth_g": 350},   # depth from back where notch slant begins (~console_depth - bt)
             {"fill_notch_front_width_g": 20}     # fill board width at the front of the notch (mm)
         ],
@@ -93,7 +144,31 @@ def get_default_parameters():
             {"piston_count_g": 9},         # Number of pistons per rail
             {"piston_diameter_g": 15},     # Piston hole diameter (mm)
             {"piston_spacing_g": 45},      # Centre-to-centre spacing (mm)
-            {"piston_rail_height_g": 38}   # Rail face height (mm); rail 1 is auto-sized to reach the table
+            {"piston_rail_height_g": 38},  # Rail face height (mm); rail 1 is auto-sized to reach the table
+            {"piston_buttons_enabled_g": True},   # Plastic buttons through the rail holes
+            {"piston_button_protrusion_g": 11},   # How far each button stands proud of the rail (mm)
+            {"piston_button_clearance_g": 1},     # Button diameter = hole diameter - clearance (mm)
+            {"piston_button_material_g": "plastic"}
+        ],
+        "Rocker_tabs": [
+            {"rocker_tabs_enabled_g": True},   # Rocker (stop) tab bank on the upper front panel
+            {"rocker_tab_groups_g": 4},        # Number of groups (register families)
+            {"rocker_tab_group_size_g": 8},    # Tabs per group
+            {"rocker_tab_width_g": 25},        # Width of each tab (mm)
+            {"rocker_tab_height_g": 70},       # Height of each tab (mm)
+            {"rocker_tab_depth_g": 7},         # How far each tab stands off the panel (mm)
+            {"rocker_tab_gap_g": 2},           # Gap between tabs within a group (mm)
+            {"rocker_tab_group_gap_g": 10},    # Gap between groups (mm)
+            {"rocker_tab_material_g": "plastic"},  # Tab material (white plastic)
+            {"rocker_tab_standoff_g": 0.5}     # Gap from the panel face (avoids z-fighting)
+        ],
+        "Music_stand": [
+            {"music_stand_enabled_g": True},   # Angled music desk on the console top
+            {"music_stand_width_g": 490},      # Width of the desk (mm)
+            {"music_stand_height_g": 196},     # Vertical rise of the desk (mm)
+            {"music_stand_angle_g": 15},       # Recline from vertical (degrees)
+            {"music_stand_pos_y_g": 150},      # Y of the desk foot, from the back (mm)
+            {"music_stand_ledge_g": 40}        # Depth of the music ledge at the foot (mm)
         ],
         "Keyboards": [
             {"keyboard_num_manuals_g": 2},
@@ -221,6 +296,19 @@ def generate_board_list(parameters):
                            else f"Piston rail under manual {n + 1}",
             "circular_holes": spec['holes'],
         })
+
+
+    # Music desk boards
+    if getattr(p, 'music_stand_enabled_g', False):
+        import math as _m
+        msw=getattr(p,'music_stand_width_g',700); msh=getattr(p,'music_stand_height_g',280)
+        msa=getattr(p,'music_stand_angle_g',15); msl=getattr(p,'music_stand_ledge_g',40)
+        board_list.append({"name":"Music Desk","width":msw,
+            "height": msh/_m.cos(_m.radians(msa)),"thickness":bt,
+            "description":f"Angled music desk, {msa:.0f} deg recline"})
+        if msl>0:
+            board_list.append({"name":"Music Desk Ledge","width":msw,"height":msl,
+                "thickness":bt,"description":"Ledge at the foot of the music desk"})
 
     return board_list
 
@@ -369,6 +457,30 @@ def generate_console(parameters):
         parts.extend(generate_piston_rails(
             parameters, _keyboard_base_position(parameters), bt,
             rail_base_z=p.table_height_g, show_dimensions=show_dims
+        ))
+
+        # Plastic buttons through the rail holes
+        parts.extend(generate_piston_buttons(
+            parameters, _keyboard_base_position(parameters), bt,
+            rail_base_z=p.table_height_g
+        ))
+
+    # Music desk on the console top
+    parts.extend(generate_music_stand(parameters))
+
+    # Rocker (stop) tab bank on the upper front wall, centred between the top of
+    # the highest manual and the top of that wall.
+    if num_manuals > 0:
+        kd = get_keyboard_dimensions(parameters)
+        top_manual_top = (_keyboard_base_position(parameters)[2]
+                          + (num_manuals - 1) * getattr(p, 'keyboard_vertical_spacing_g', 73)
+                          + kd['height'])
+        wall_front_y = p.console_depth_g - p.base_front_distance_g + bt
+        parts.extend(generate_rocker_tabs(
+            parameters,
+            front_y=wall_front_y,
+            center_x=-bt - p.organ_internal_width_g / 2,
+            z_center=(top_manual_top + p.total_height_g) / 2
         ))
 
     return Compound(children=parts)
