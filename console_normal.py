@@ -16,6 +16,7 @@ Usage:
     board_list = generate_board_list(params)
 """
 
+import math
 from build123d import *
 from utils import DotDict, create_board
 from keyboard import (generate_keyboard_stack, get_keyboard_dimensions,
@@ -235,6 +236,132 @@ def generate_knob_stairs(parameters, show_dimensions=False):
     return parts
 
 
+def _knob_prototypes(parameters, hole_diameter):
+    """
+    Build one drawknob (black gramophone horn + white cap) at the origin,
+    flaring toward +Y with the neck at y=0. Returns (trumpet, cap, body_mat,
+    cap_mat) so callers can copy the same knob to every hole.
+    """
+    p = DotDict(parameters)
+
+    knob_d = getattr(p, 'knob_stair_knob_diameter_g', 30)
+    protr = getattr(p, 'knob_stair_knob_protrusion_g', 15)
+    cap_t = getattr(p, 'knob_stair_knob_cap_thickness_g', 1)
+    body_mat = getattr(p, 'knob_stair_knob_body_material_g', 'black')
+    cap_mat = getattr(p, 'knob_stair_knob_cap_material_g', 'white')
+    base_d = getattr(p, 'knob_stair_knob_base_diameter_g', hole_diameter - 2)
+    flare = getattr(p, 'knob_stair_knob_flare_g', 3.0)   # >1 keeps a neck then bells out
+
+    r_front = knob_d / 2
+    r_back = max(1.0, base_d / 2)   # trumpet neck, sits inside the hole
+
+    n = 16
+    outer = [(r_back + (r_front - r_back) * ((i / n) ** flare), (i / n) * protr)
+             for i in range(n + 1)]
+    with BuildPart() as horn:
+        with BuildSketch(Plane.XY):
+            with BuildLine():
+                Polyline([(0, 0)] + outer + [(0, protr), (0, 0)])
+            make_face()
+        revolve(axis=Axis.Y)
+    trumpet = horn.part
+    cap = Pos(0, protr + cap_t / 2, 0) * (Rot(90, 0, 0) * Cylinder(
+        radius=r_front, height=cap_t))
+    return trumpet, cap, body_mat, cap_mat
+
+
+def generate_curved_knob_stairs(parameters):
+    """
+    Semicircular terraced drawknob controller: the straight staircase revolved
+    around a vertical axis into an arc. Treads become moon-shaped annular boards,
+    risers become curved bands, and a flat terminator board closes each end - the
+    same pieces as the straight staircase, just swept. The straight staircase is
+    the limit as the radius goes to infinity (arc angle -> 0).
+
+    The controller starts at the union line where the keyboards meet the upper
+    front board and steps up-and-back around the axis. Knobs sit on the outer
+    face of each riser, equally spaced along the arc, facing the player.
+
+    Args:
+        parameters: Parameter dictionary
+
+    Returns:
+        List of Part objects (empty when disabled or the radius is not finite)
+    """
+    p = DotDict(parameters)
+
+    if not getattr(p, 'knob_stairs_enabled_g', False):
+        return []
+    if getattr(p, 'knob_stair_radius_g', 0) <= 0:
+        return []   # 0 = straight staircase, handled elsewhere
+
+    spec = get_knob_stair_specs(parameters)
+    if spec is None:
+        return []
+
+    bt = p.general_board_thickness_g
+    arc = math.radians(getattr(p, 'knob_stair_arc_angle_g', 55))  # angular span per jamb
+    spacing = getattr(p, 'knob_stair_hole_spacing_g', 55)
+    hole_d = spec['hole_diameter']
+    W = spec['width']
+    if arc <= 0 or W <= 0:
+        return []
+
+    kbd_w = get_keyboard_dimensions(parameters)['width']
+    cheek = get_cheek_thickness(parameters, bt)
+    cxm = -bt - p.organ_internal_width_g / 2                  # console centre X
+    inner_edge = kbd_w / 2 + cheek + getattr(p, 'knob_stair_gap_g', 20)
+    radius = W / arc                                          # developed width = jamb width
+
+    knobs_on = getattr(p, 'knob_stair_knobs_enabled_g', False)
+    if knobs_on:
+        trumpet0, cap0, body_mat, cap_mat = _knob_prototypes(parameters, hole_d)
+
+    n_cols = max(1, int(W / spacing))
+
+    parts = []
+    # sgn = +1 right jamb (extends toward +X), -1 left jamb (mirror).
+    for sgn in (+1, -1):
+        cheek_x = cxm + sgn * inner_edge                     # inner end anchored at the cheek
+
+        for step in spec['steps']:
+            ay = step['front_y']                             # this terrace's front line (steps back)
+            oy = ay + radius                                 # arc centre sits toward the player
+            zb = step['riser_z_bottom']
+            fh = step['riser_height']
+            fz = zb + fh / 2
+            rows = sorted({hy for _, hy, _ in step['holes']}) or [fh / 2]
+
+            for c in range(n_cols):
+                beta = (c + 0.5) * spacing / radius          # arc angle from the cheek anchor
+                if beta > arc:
+                    break
+                fx = cheek_x + sgn * radius * math.sin(beta)
+                fy = oy - radius * math.cos(beta)
+                deg = sgn * math.degrees(beta)               # facet turns toward the centre
+
+                with BuildPart() as fb:
+                    Box(spacing, bt, fh)
+                    with Locations(*[(0, 0, hy - fh / 2) for hy in rows]):
+                        Cylinder(radius=hole_d / 2, height=bt * 3,
+                                 rotation=(90, 0, 0), mode=Mode.SUBTRACT)
+                parts.append(Pos(fx, fy, fz) * (Rot(0, 0, deg) * fb.part))
+
+                if knobs_on:
+                    nx, ny = -sgn * math.sin(beta), math.cos(beta)   # face concave centre (player)
+                    for hy in rows:
+                        kz = zb + hy
+                        px, py = fx + nx * bt / 2, fy + ny * bt / 2
+                        t = Pos(px, py, kz) * (Rot(0, 0, deg) * trumpet0)
+                        t.label = f"material:{body_mat}"
+                        cc = Pos(px, py, kz) * (Rot(0, 0, deg) * cap0)
+                        cc.label = f"material:{cap_mat}"
+                        parts.append(t)
+                        parts.append(cc)
+
+    return parts
+
+
 def generate_knob_stair_knobs(parameters):
     """
     Generate the drawknobs sitting in the knob-stair riser holes.
@@ -259,33 +386,7 @@ def generate_knob_stair_knobs(parameters):
     if spec is None:
         return []
 
-    bt = p.general_board_thickness_g
-    knob_d = getattr(p, 'knob_stair_knob_diameter_g', 30)
-    protr = getattr(p, 'knob_stair_knob_protrusion_g', 15)
-    cap_t = getattr(p, 'knob_stair_knob_cap_thickness_g', 1)
-    body_mat = getattr(p, 'knob_stair_knob_body_material_g', 'black')
-    cap_mat = getattr(p, 'knob_stair_knob_cap_material_g', 'white')
-
-    base_d = getattr(p, 'knob_stair_knob_base_diameter_g', spec['hole_diameter'] - 2)
-    flare = getattr(p, 'knob_stair_knob_flare_g', 3.0)   # >1 keeps a neck then bells out
-    r_front = knob_d / 2
-    r_back = max(1.0, base_d / 2)   # trumpet neck, sits inside the hole
-
-    # Prototype horn: a revolved profile that stays near the neck radius for most
-    # of its length then flares to the bell, like a gramophone horn, rather than
-    # a straight cone. Built once along +Y with its neck at y=0.
-    n = 16
-    outer = [(r_back + (r_front - r_back) * ((i / n) ** flare), (i / n) * protr)
-             for i in range(n + 1)]
-    with BuildPart() as horn:
-        with BuildSketch(Plane.XY):
-            with BuildLine():
-                Polyline([(0, 0)] + outer + [(0, protr), (0, 0)])
-            make_face()
-        revolve(axis=Axis.Y)
-    trumpet0 = horn.part
-    cap0 = Pos(0, protr + cap_t / 2, 0) * (Rot(90, 0, 0) * Cylinder(
-        radius=r_front, height=cap_t))
+    trumpet0, cap0, body_mat, cap_mat = _knob_prototypes(parameters, spec['hole_diameter'])
 
     parts = []
     for x_edge in (spec['x_right'], spec['x_left']):
@@ -347,6 +448,8 @@ def get_default_parameters():
             {"knob_stair_hole_spacing_g": 55},    # Centre-to-centre knob spacing (mm)
             {"knob_stair_gap_g": 20},             # Clear gap between the cheek and the staircase (mm)
             {"knob_stair_front_inset_g": 20},     # Setback of the bottom riser from the table front edge (mm)
+            {"knob_stair_radius_g": 0},           # Concave arc radius (0 = straight staircase)
+            {"knob_stair_arc_angle_g": 90},       # Per-jamb bend angle (deg); 0-radius = straight
             {"knob_stair_knobs_enabled_g": True},     # Draw the knobs in the holes
             {"knob_stair_knob_diameter_g": 35},       # Knob bell diameter (mm)
             {"knob_stair_knob_base_diameter_g": 18},  # Knob stem (start) diameter (mm)
@@ -767,11 +870,14 @@ def generate_console(parameters):
             cheek_z=table_top_z, show_dimensions=show_dims
         ))
 
-        # Terraced drawknob jambs either side of the manuals
-        parts.extend(generate_knob_stairs(parameters, show_dimensions=show_dims))
-
-        # Drawknobs in the jamb holes
-        parts.extend(generate_knob_stair_knobs(parameters))
+        # Terraced drawknob jambs either side of the manuals. A finite radius
+        # bends them onto a concave arc facing the player; otherwise they are
+        # the straight staircase with its side stringers and separate knobs.
+        if getattr(p, 'knob_stair_radius_g', 0) > 0:
+            parts.extend(generate_curved_knob_stairs(parameters))
+        else:
+            parts.extend(generate_knob_stairs(parameters, show_dimensions=show_dims))
+            parts.extend(generate_knob_stair_knobs(parameters))
 
         # Combination piston rail under each manual
         parts.extend(generate_piston_rails(
